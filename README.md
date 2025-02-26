@@ -1,2 +1,0 @@
-# EduSpark
-Jai Shree Ram
