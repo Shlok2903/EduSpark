@@ -4,6 +4,7 @@ import { Routes, Route } from 'react-router-dom';
 import store from './store/store';
 import PrivateRoute from './utils/PrivateRoute';
 import Login from './components/auth/login/Login';
+import Signup from './components/auth/signup/Signup';
 import Home from './components/home/Home';
 import Courses from './components/courses/courseList/CourseList';
 import './App.css';
@@ -13,6 +14,8 @@ function App() {
     <Provider store={store}>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/tutorsignup" element={<Signup isTutor={true} />} />
         <Route path="/" element={
           <PrivateRoute>
             <Home />
