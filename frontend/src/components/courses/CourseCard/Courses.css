@@ -1,0 +1,11 @@
+/* Copy the course card styles from CourseList.css */
+.course-card {
+  display: flex;
+  background: #FAF9F6;
+  border-radius: 16px;
+  overflow: hidden;
+  min-width: 480px;
+  height: 180px;
+}
+
+/* Add other course card styles */ 

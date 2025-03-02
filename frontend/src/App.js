@@ -1,28 +1,35 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
-import './App.css';
-import Login from './components/login/Login';
-import Signup from './components/signup/Signup';
+import React from 'react';
+import { Provider } from 'react-redux';
+import { Routes, Route } from 'react-router-dom';
+import store from './store/store';
+import PrivateRoute from './utils/PrivateRoute';
+import Login from './components/auth/login/Login';
 import Home from './components/home/Home';
-import { useState } from 'react';
-import RefrshHandler from './RefrshHandler';
+import Courses from './components/courses/courseList/CourseList';
+import './App.css';
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  const PrivateRoute = ({ element }) => {
-    return isAuthenticated ? element : <Navigate to="/login" />
-  }
-
   return (
-    <div className="App">
-      <RefrshHandler setIsAuthenticated={setIsAuthenticated} />
+    <Provider store={store}>
       <Routes>
-        <Route path='/' element={<Navigate to="/login" />} />
-        <Route path='/login' element={<Login />} />
-        <Route path='/signup' element={<Signup />} />
-        <Route path='/home' element={<PrivateRoute element={<Home />} />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/" element={
+          <PrivateRoute>
+            <Home />
+          </PrivateRoute>
+        } />
+        <Route path="/home" element={
+          <PrivateRoute>
+            <Home />
+          </PrivateRoute>
+        } />
+        <Route path="/courses" element={
+          <PrivateRoute>
+            <Courses />
+          </PrivateRoute>
+        } />
       </Routes>
-    </div>
+    </Provider>
   );
 }
 

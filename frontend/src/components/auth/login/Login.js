@@ -2,16 +2,18 @@ import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ToastContainer } from 'react-toastify';
 import { TextField, Button, Box, Typography, InputAdornment, IconButton } from '@mui/material';
-import { handleError, handleSuccess } from '../../utils';
+import { handleError, handleSuccess } from '../../../utils';
 import './Login.css';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import { useDispatch } from 'react-redux';
+import { loginStart, loginSuccess, loginFailure } from '../../../store/slices/authSlice';
 
 // Import assets
-import GirlSvg from '../../assets/girl.svg';
-import LogoSvg from '../../assets/logo.svg';
-import PlantDark from '../../assets/Plant-1.svg';
-import PlantLight from '../../assets/Plant.svg';
+import GirlSvg from '../../../assets/girl.svg';
+import LogoSvg from '../../../assets/logo.svg';
+import PlantDark from '../../../assets/Plant-1.svg';
+import PlantLight from '../../../assets/Plant.svg';
 
 // Add this new component for the navbar
 const Navbar = () => (
@@ -84,62 +86,58 @@ const Navbar = () => (
 );
 
 function Login() {
-
-    const [loginInfo, setLoginInfo] = useState({
-        email: '',
-        password: ''
-    })
-
+    const dispatch = useDispatch();
     const navigate = useNavigate();
-    const [showPassword, setShowPassword] = useState(false);
-
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        console.log(name, value);
-        const copyLoginInfo = { ...loginInfo };
-        copyLoginInfo[name] = value;
-        setLoginInfo(copyLoginInfo);
+    
+    const token = localStorage.getItem('token');
+    if (token) {
+        navigate('/home', { replace: true });
     }
 
-    const handleTogglePassword = () => {
-        setShowPassword(!showPassword);
-    };
+    const [formData, setFormData] = useState({
+        email: '',
+        password: ''
+    });
+    const [showPassword, setShowPassword] = useState(false);
 
-    const handleLogin = async (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        const { email, password } = loginInfo;
-        if (!email || !password) {
-            return handleError('email and password are required')
-        }
+        dispatch(loginStart());
+        
         try {
-            const url = "http://localhost:8080/auth/login";
-            const response = await fetch(url, {
+            const response = await fetch("http://localhost:8080/auth/login", {
                 method: "POST",
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(loginInfo)
+                body: JSON.stringify(formData)
             });
+            
             const result = await response.json();
-            const { success, message, jwtToken, name, error } = result;
-            if (success) {
-                handleSuccess(message);
-                localStorage.setItem('token', jwtToken);
-                localStorage.setItem('loggedInUser', name);
+            
+            if (result.success) {
+                handleSuccess(result.message);
+                localStorage.setItem('token', result.jwtToken);
+                localStorage.setItem('loggedInUser', result.name);
+                dispatch(loginSuccess({ name: result.name, email: result.email }));
+                
+                // Add a small delay before navigation
                 setTimeout(() => {
-                    navigate('/home')
-                }, 1000)
-            } else if (error) {
-                const details = error?.details[0].message;
-                handleError(details);
-            } else if (!success) {
-                handleError(message);
+                    navigate('/home');
+                }, 1000);
+            } else {
+                handleError(result.message || 'Login failed');
+                dispatch(loginFailure(result.message));
             }
-            console.log(result);
-        } catch (err) {
-            handleError(err);
+        } catch (error) {
+            handleError('An error occurred during login');
+            dispatch(loginFailure('Login failed'));
         }
-    }
+    };
+
+    const handleTogglePassword = () => {
+        setShowPassword(!showPassword);
+    };
 
     return (
         <div className="login-container">
@@ -170,7 +168,7 @@ function Login() {
                     </Typography>
                 </div>
 
-                <form onSubmit={handleLogin}>
+                <form onSubmit={handleSubmit}>
                     <Box sx={{ mb: 3 }}>
                         <Typography 
                             sx={{ 
@@ -186,8 +184,8 @@ function Login() {
                             fullWidth
                             name="email"
                             type="email"
-                            value={loginInfo.email}
-                            onChange={handleChange}
+                            value={formData.email}
+                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                             placeholder="abc@xyz.com"
                             variant="outlined"
                             sx={{
@@ -212,32 +210,24 @@ function Login() {
                         <TextField
                             fullWidth
                             name="password"
-                            type={showPassword ? "text" : "password"}
-                            value={loginInfo.password}
-                            onChange={handleChange}
+                            type={showPassword ? 'text' : 'password'}
+                            value={formData.password}
+                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                             placeholder="*********"
                             variant="outlined"
-                            InputProps={{
-                                endAdornment: (
-                                    <InputAdornment position="end">
-                                        <Typography
-                                            onClick={handleTogglePassword}
-                                            sx={{
-                                                cursor: 'pointer',
-                                                color: '#666',
-                                                fontSize: '14px',
-                                                userSelect: 'none'
-                                            }}
-                                        >
-                                            {showPassword ? 'Hide' : 'Show'}
-                                        </Typography>
-                                    </InputAdornment>
-                                ),
-                            }}
                             sx={{
                                 '& .MuiOutlinedInput-root': {
                                     borderRadius: '8px',
                                 }
+                            }}
+                            InputProps={{
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <IconButton onClick={handleTogglePassword}>
+                                            {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                                        </IconButton>
+                                    </InputAdornment>
+                                ),
                             }}
                         />
                     </Box>
