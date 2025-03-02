@@ -15,6 +15,14 @@ const UserSchema = new Schema({
     type: String,
     required: true,
   },
+  isAdmin: {
+    type: Boolean,
+    default: false
+  },
+  isTutor: {
+    type: Boolean,
+    default: false
+  }
 });
 
 const UserModel = mongoose.model("users", UserSchema);
