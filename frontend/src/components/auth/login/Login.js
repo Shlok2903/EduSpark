@@ -119,6 +119,7 @@ function Login() {
                 handleSuccess(result.message);
                 localStorage.setItem('token', result.jwtToken);
                 localStorage.setItem('loggedInUser', result.name);
+                localStorage.setItem('userEmail', result.email);
                 dispatch(loginSuccess({ name: result.name, email: result.email }));
                 
                 // Add a small delay before navigation

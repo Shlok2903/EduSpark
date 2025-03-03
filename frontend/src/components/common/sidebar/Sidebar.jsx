@@ -13,6 +13,7 @@ function Sidebar() {
     const navigate = useNavigate();
     const location = useLocation();
     const userName = localStorage.getItem('loggedInUser');
+    const userEmail = localStorage.getItem('userEmail');
     
     const [activeTab, setActiveTab] = useState('/home');
 
@@ -60,7 +61,7 @@ function Sidebar() {
                     />
                     <div className="user-details">
                         <Typography className="user-name">{userName || 'User'}</Typography>
-                        <Typography className="user-email">shlok.patel@gmail.com</Typography>
+                        <Typography className="user-email">{userEmail || 'user@example.com'}</Typography>
                     </div>
                     <div className="logout-button">
                         <LogoutIcon sx={{ fontSize: 20, cursor: 'pointer' }} />
