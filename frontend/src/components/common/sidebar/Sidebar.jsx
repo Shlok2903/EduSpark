@@ -4,6 +4,8 @@ import HomeIcon from '@mui/icons-material/Home';
 import SchoolIcon from '@mui/icons-material/School';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import LogoutIcon from '@mui/icons-material/Logout';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import DashboardIcon from '@mui/icons-material/Dashboard';
 // Update the logo import path to match your assets directory
 import LogoSvg from '../../../assets/logo.svg';  // Adjust this path
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -14,6 +16,8 @@ function Sidebar() {
     const location = useLocation();
     const userName = localStorage.getItem('loggedInUser');
     const userEmail = localStorage.getItem('userEmail');
+    const isAdmin = localStorage.getItem('isAdmin') === 'true';
+    const isTutor = localStorage.getItem('isTutor') === 'true';
     
     const [activeTab, setActiveTab] = useState('/home');
 
@@ -50,6 +54,24 @@ function Sidebar() {
                     <AssessmentIcon sx={{ fontSize: 20 }} />
                     <span>Results</span>
                 </div>
+                
+                {/* Admin and Tutor specific options */}
+                {(isAdmin || isTutor) && (
+                    <>
+                        <div className={`nav-item ${activeTab === '/add-course' ? 'active' : ''}`} onClick={() => handleNavigation('/add-course')}>
+                            <AddCircleOutlineIcon sx={{ fontSize: 20 }} />
+                            <span>Add Course</span>
+                        </div>
+                    </>
+                )}
+                
+                {/* Admin specific options */}
+                {isAdmin && (
+                    <div className={`nav-item ${activeTab === '/admin-dashboard' ? 'active' : ''}`} onClick={() => handleNavigation('/admin-dashboard')}>
+                        <DashboardIcon sx={{ fontSize: 20 }} />
+                        <span>Admin Dashboard</span>
+                    </div>
+                )}
             </nav>
 
             <div className="user-profile">

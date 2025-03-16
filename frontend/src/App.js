@@ -7,6 +7,8 @@ import Login from './components/auth/login/Login';
 import Signup from './components/auth/signup/Signup';
 import Home from './components/home/Home';
 import Courses from './components/courses/courseList/CourseList';
+import AddCourse from './components/courses/AddCourse';
+import CourseDetail from './components/courses/CourseDetail';
 import './App.css';
 
 function App() {
@@ -31,6 +33,12 @@ function App() {
             <Courses />
           </PrivateRoute>
         } />
+        <Route path="/add-course" element={
+          <PrivateRoute adminOrTutorOnly={true}>
+            <AddCourse />
+          </PrivateRoute>
+        } />
+        <Route path="/courses/:courseId" element={<CourseDetail />} />
       </Routes>
     </Provider>
   );

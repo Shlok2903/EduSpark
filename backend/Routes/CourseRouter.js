@@ -1,30 +1,42 @@
-const router = require("express").Router();
-const { ensureAuthenticated } = require("../Middlewares/Auth");
-const { createCourse, getCourses, getCourseById, updateCourse, deleteCourse } = require("../Controllers/CourseController");
-const { handleUpload } = require("../Middlewares/uploadMiddleware");
+const express = require('express');
+const router = express.Router();
+const { handleUpload } = require('../Middlewares/uploadMiddleware');
+const ensureAuthenticated = require('../Middlewares/Auth');
+const { isAdminOrTutor, isAdminOrCreator } = require('../Middlewares/roleMiddleware');
+const Course = require('../Models/Course');
+const {
+  createCourse,
+  getAllCourses,
+  getCourseById,
+  updateCourse,
+  deleteCourse
+} = require('../Controllers/CourseController');
 
-// Middleware to check if user is a tutor
-const ensureTutor = (req, res, next) => {
-    if (!req.user.isTutor) {
-        return res.status(403).json({
-            success: false,
-            message: 'Access denied. Only tutors can perform this action.'
-        });
-    }
-    next();
-};
-
-// Apply authentication and tutor check to all routes
+// Apply auth middleware to all routes
 router.use(ensureAuthenticated);
-router.use(ensureTutor);
 
-// Course routes with file upload
-router.post("/", handleUpload('thumbnail'), createCourse);
-router.put("/:id", handleUpload('thumbnail'), updateCourse);
+// Get all courses - accessible to all authenticated users
+router.get('/', getAllCourses);
 
-// Other routes remain the same
-router.get("/", getCourses);
-router.get("/:id", getCourseById);
-router.delete("/:id", deleteCourse);
+// Get a specific course by ID - accessible to all authenticated users
+router.get('/:courseId', getCourseById);
+
+// Create a new course with image upload - requires admin or tutor role
+router.post('/', isAdminOrTutor, handleUpload('courseImage'), createCourse);
+
+// Update a course with optional image upload - requires admin or course creator
+router.put(
+  '/:courseId', 
+  isAdminOrCreator((req) => Course.findById(req.params.courseId)), 
+  handleUpload('courseImage'), 
+  updateCourse
+);
+
+// Delete a course - requires admin or course creator
+router.delete(
+  '/:courseId', 
+  isAdminOrCreator((req) => Course.findById(req.params.courseId)), 
+  deleteCourse
+);
 
 module.exports = router; 

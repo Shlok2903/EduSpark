@@ -1,47 +1,84 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
+// Schema for different content types
+const VideoContentSchema = new Schema({
+  videoUrl: {
+    type: String,
+    required: true
+  }
+});
+
+const TextContentSchema = new Schema({
+  content: {
+    type: String,
+    required: true
+  }
+});
+
+const QuizOptionSchema = new Schema({
+  text: {
+    type: String,
+    required: true
+  },
+  isCorrect: {
+    type: Boolean,
+    default: false
+  }
+});
+
+const QuizQuestionSchema = new Schema({
+  question: {
+    type: String,
+    required: true
+  },
+  options: [QuizOptionSchema]
+});
+
+const QuizContentSchema = new Schema({
+  questions: [QuizQuestionSchema],
+  passingScore: {
+    type: Number,
+    default: 70
+  }
+});
+
+// Main Module Schema
 const ModuleSchema = new Schema({
-  courseId: {
-    type: Schema.Types.ObjectId,
-    ref: "courses",
-    required: true,
+  title: {
+    type: String,
+    required: true
+  },
+  description: {
+    type: String,
+    required: true
   },
   sectionId: {
     type: Schema.Types.ObjectId,
     ref: "sections",
-    required: true,
+    required: true
   },
-  title: {
-    type: String,
-    required: true,
-  },
-  description: {
-    type: String,
-    required: true,
+  courseId: {
+    type: Schema.Types.ObjectId,
+    ref: "courses",
+    required: true
   },
   contentType: {
     type: String,
-    enum: ["video", "text", "quizz"],
-    required: true,
+    enum: ["text", "video", "quizz"],
+    required: true
   },
-  contentId: {
-    type: Schema.Types.ObjectId,
-    refPath: "contentType_model",
-    required: true,
-  },
-  contentType_model: {
-    type: String,
-    required: true,
-    enum: {
-      video: "video_contents",
-      text: "text_contents",
-      quizz: "quizz_contents"
-    }
+  // Store the appropriate content based on the contentType
+  videoContent: VideoContentSchema,
+  textContent: TextContentSchema,
+  quizContent: QuizContentSchema,
+  order: {
+    type: Number,
+    default: 0
   },
   createdAt: {
     type: Date,
-    default: Date.now,
+    default: Date.now
   }
 });
 

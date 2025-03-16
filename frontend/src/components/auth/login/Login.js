@@ -89,7 +89,7 @@ function Login() {
     const dispatch = useDispatch();
     const navigate = useNavigate();
     
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('jwtToken');
     if (token) {
         navigate('/home', { replace: true });
     }
@@ -117,10 +117,17 @@ function Login() {
             
             if (result.success) {
                 handleSuccess(result.message);
-                localStorage.setItem('token', result.jwtToken);
+                localStorage.setItem('jwtToken', result.jwtToken);
                 localStorage.setItem('loggedInUser', result.name);
                 localStorage.setItem('userEmail', result.email);
-                dispatch(loginSuccess({ name: result.name, email: result.email }));
+                localStorage.setItem('isAdmin', result.isAdmin);
+                localStorage.setItem('isTutor', result.isTutor);
+                dispatch(loginSuccess({ 
+                    name: result.name, 
+                    email: result.email,
+                    isAdmin: result.isAdmin,
+                    isTutor: result.isTutor
+                }));
                 
                 // Add a small delay before navigation
                 setTimeout(() => {

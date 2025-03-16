@@ -2,28 +2,29 @@ const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
 const SectionSchema = new Schema({
-  courseId: {
-    type: Schema.Types.ObjectId,
-    ref: "courses",
-    required: true,
-  },
   title: {
     type: String,
-    required: true,
+    required: true
   },
   description: {
     type: String,
-    required: true,
+    required: true
+  },
+  courseId: {
+    type: Schema.Types.ObjectId,
+    ref: "courses",
+    required: true
   },
   deadline: {
-    type: Date,
+    type: Date
   },
-  imageUrl: {
-    type: String,
+  order: {
+    type: Number,
+    default: 0
   },
   createdAt: {
     type: Date,
-    default: Date.now,
+    default: Date.now
   }
 });
 
