@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { handleUpload } = require('../Middlewares/uploadMiddleware');
-const ensureAuthenticated = require('../Middlewares/Auth');
-const { isAdminOrTutor, isAdminOrCreator } = require('../Middlewares/roleMiddleware');
-const Course = require('../Models/Course');
+const { verifyToken } = require('../Middlewares/AuthMiddleware');
+const { isAdminOrTutor } = require('../Middlewares/roleMiddleware');
+const { isCreatorOrAdmin, isEnrolledOrCreator } = require('../Middlewares/CourseAccessMiddleware');
 const {
   createCourse,
   getAllCourses,
@@ -13,12 +13,12 @@ const {
 } = require('../Controllers/CourseController');
 
 // Apply auth middleware to all routes
-router.use(ensureAuthenticated);
+router.use(verifyToken);
 
 // Get all courses - accessible to all authenticated users
 router.get('/', getAllCourses);
 
-// Get a specific course by ID - accessible to all authenticated users
+// Get a specific course by ID - checks for creator or enrollment status
 router.get('/:courseId', getCourseById);
 
 // Create a new course with image upload - requires admin or tutor role
@@ -27,7 +27,7 @@ router.post('/', isAdminOrTutor, handleUpload('courseImage'), createCourse);
 // Update a course with optional image upload - requires admin or course creator
 router.put(
   '/:courseId', 
-  isAdminOrCreator((req) => Course.findById(req.params.courseId)), 
+  isCreatorOrAdmin, 
   handleUpload('courseImage'), 
   updateCourse
 );
@@ -35,7 +35,7 @@ router.put(
 // Delete a course - requires admin or course creator
 router.delete(
   '/:courseId', 
-  isAdminOrCreator((req) => Course.findById(req.params.courseId)), 
+  isCreatorOrAdmin, 
   deleteCourse
 );
 

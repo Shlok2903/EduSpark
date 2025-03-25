@@ -47,23 +47,29 @@ const getAllCourses = async (req, res) => {
 const getCourseById = async (req, res) => {
   try {
     const { courseId } = req.params;
-    const course = await courseService.getCourseById(courseId);
+    const userId = req.user._id;
     
-    res.status(200).json({
-      success: true,
-      data: course
-    });
+    try {
+      const course = await courseService.getCourseById(courseId, userId);
+      
+      res.status(200).json({
+        success: true,
+        data: course
+      });
+    } catch (error) {
+      // If error is about enrollment, return 403 instead of 500
+      if (error.message.includes('need to enroll')) {
+        return res.status(403).json({
+          success: false,
+          message: error.message,
+          requiresEnrollment: true
+        });
+      }
+      throw error;
+    }
   } catch (error) {
     console.error('Error fetching course:', error);
-    
-    if (error.message === 'Course not found') {
-      return res.status(404).json({
-        success: false,
-        message: 'Course not found'
-      });
-    }
-    
-    res.status(500).json({
+    res.status(error.message.includes('not found') ? 404 : 500).json({
       success: false,
       message: 'Error fetching course',
       error: error.message

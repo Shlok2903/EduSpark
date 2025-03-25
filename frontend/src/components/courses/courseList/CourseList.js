@@ -9,8 +9,12 @@ import AvailableCourseCard from '../CourseCard/AvailableCourseCard';
 import AddCourse from '../AddCourse';
 import Sidebar from '../../common/sidebar/Sidebar';
 import './Courses.css';
-import { courseService } from '../../../services/api';
+import { courseService, enrollmentService } from '../../../services/api';
 import { handleError } from '../../../utils';
+import { useNavigate } from 'react-router-dom';
+
+// Default image for courses that don't have one
+const defaultCourseImage = 'https://via.placeholder.com/300x200?text=Course+Image';
 
 function Courses() {
     const [courses, setCourses] = useState([]);
@@ -19,15 +23,27 @@ function Courses() {
     const [searchTerm, setSearchTerm] = useState('');
     const [error, setError] = useState('');
     const [openAddCourse, setOpenAddCourse] = useState(false);
+    const [userDetails, setUserDetails] = useState(null);
     const theme = useTheme();
     const fullScreen = useMediaQuery(theme.breakpoints.down('md'));
+    const navigate = useNavigate();
     
-    // Check if user is admin or tutor
+    // Get user details from localStorage
     const isAdmin = localStorage.getItem('isAdmin') === 'true';
     const isTutor = localStorage.getItem('isTutor') === 'true';
+    const userId = localStorage.getItem('userId');
+    const userName = localStorage.getItem('userName');
     const canCreateCourse = isAdmin || isTutor;
     
     useEffect(() => {
+        // Set user details from localStorage
+        setUserDetails({
+            _id: userId,
+            isAdmin: isAdmin,
+            isTutor: isTutor,
+            name: userName
+        });
+        
         // Fetch courses when component mounts
         fetchCourses();
     }, []);
@@ -36,19 +52,20 @@ function Courses() {
         try {
             setLoading(true);
             setError('');
-            const response = await courseService.getAllCourses();
             
-            console.log('Courses fetched:', response.data); // Add logging for debugging
+            const coursesResponse = await courseService.getAllCourses();
             
-            if (response.success) {
-                setCourses(response.data || []);
-                setFilteredCourses(response.data || []);
+            console.log('Courses fetched:', coursesResponse.data); // Add logging for debugging
+            
+            if (coursesResponse.success) {
+                setCourses(coursesResponse.data || []);
+                setFilteredCourses(coursesResponse.data || []);
             } else {
-                setError(response.message || 'Failed to load courses');
+                setError(coursesResponse.message || 'Failed to load courses');
             }
         } catch (err) {
-            console.error('Error fetching courses:', err);
-            const errorMsg = err.formattedMessage || 'Failed to fetch courses. Please try again later.';
+            console.error('Error fetching data:', err);
+            const errorMsg = err.formattedMessage || 'Failed to load courses. Please try again later.';
             setError(errorMsg);
             handleError(errorMsg);
         } finally {
@@ -56,22 +73,16 @@ function Courses() {
         }
     };
     
-    // Handle search input change
-    const handleSearchChange = (e) => {
-        const term = e.target.value;
-        setSearchTerm(term);
-        
-        // Filter courses based on search term
-        if (term.trim() === '') {
-            setFilteredCourses(courses);
-        } else {
-            const filtered = courses.filter(course => 
-                course.title.toLowerCase().includes(term.toLowerCase()) ||
-                (course.description && course.description.toLowerCase().includes(term.toLowerCase()))
-            );
-            setFilteredCourses(filtered);
-        }
-    };
+    // Filter courses based on search term
+    useEffect(() => {
+        if (!courses.length) return;
+
+        const filtered = courses.filter(course => 
+            course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (course.tutor && course.tutor.name && course.tutor.name.toLowerCase().includes(searchTerm.toLowerCase()))
+        );
+        setFilteredCourses(filtered);
+    }, [searchTerm, courses]);
     
     // Filter enrolled courses (this would be based on user's enrollment status)
     // For demonstration, we'll just assume no courses are enrolled yet
@@ -104,7 +115,7 @@ function Courses() {
                                 variant="outlined"
                                 fullWidth
                                 value={searchTerm}
-                                onChange={handleSearchChange}
+                                onChange={(e) => setSearchTerm(e.target.value)}
                                 InputProps={{
                                     startAdornment: (
                                         <InputAdornment position="start">
@@ -203,10 +214,10 @@ function Courses() {
                                             title={course.title}
                                             tutor={course.createdBy?.name || 'Unknown Instructor'}
                                             optional={course.isOptional}
-                                            image={course.imageUrl || 'https://via.placeholder.com/300x200?text=No+Image'}
+                                            image={course.imageUrl || defaultCourseImage}
                                             isAdmin={isAdmin}
                                             isTutor={isTutor}
-                                            isCreator={course.createdBy?._id === localStorage.getItem('userId')}
+                                            isCreator={course.createdBy?._id === userId}
                                         />
                                     ))}
                                 </div>

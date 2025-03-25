@@ -5,6 +5,7 @@ const Module = require('./Module');
 const VideoContent = require('./VideoContent');
 const TextContent = require('./TextContent');
 const QuizzContent = require('./QuizzContent');
+const Enrollment = require('./Enrollment');
 
 module.exports = {
   User,
@@ -13,5 +14,6 @@ module.exports = {
   Module,
   VideoContent,
   TextContent,
-  QuizzContent
+  QuizzContent,
+  Enrollment
 }; 

@@ -8,6 +8,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { useDispatch } from 'react-redux';
 import { loginStart, loginSuccess, loginFailure } from '../../../store/slices/authSlice';
+import authService from '../../../services/authService';
 
 // Import assets
 import GirlSvg from '../../../assets/girl.svg';
@@ -86,8 +87,8 @@ const Navbar = () => (
 );
 
 function Login() {
-    const dispatch = useDispatch();
     const navigate = useNavigate();
+    const dispatch = useDispatch();
     
     const token = localStorage.getItem('jwtToken');
     if (token) {
@@ -105,28 +106,16 @@ function Login() {
         dispatch(loginStart());
         
         try {
-            const response = await fetch("http://localhost:8080/auth/login", {
-                method: "POST",
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(formData)
-            });
-            
-            const result = await response.json();
+            const result = await authService.login(formData);
             
             if (result.success) {
-                handleSuccess(result.message);
-                localStorage.setItem('jwtToken', result.jwtToken);
-                localStorage.setItem('loggedInUser', result.name);
-                localStorage.setItem('userEmail', result.email);
-                localStorage.setItem('isAdmin', result.isAdmin);
-                localStorage.setItem('isTutor', result.isTutor);
+                handleSuccess('Login successful');
                 dispatch(loginSuccess({ 
-                    name: result.name, 
-                    email: result.email,
-                    isAdmin: result.isAdmin,
-                    isTutor: result.isTutor
+                    name: result.data.name, 
+                    email: result.data.email,
+                    isAdmin: result.data.isAdmin,
+                    isTutor: result.data.isTutor,
+                    id: result.data.id
                 }));
                 
                 // Add a small delay before navigation

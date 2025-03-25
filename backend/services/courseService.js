@@ -1,8 +1,30 @@
 const Course = require('../Models/Course');
 const Section = require('../Models/Section');
 const Module = require('../Models/Module');
+const Enrollment = require('../Models/Enrollment');
 const { uploadToCloudinary } = require('../config/cloudinary');
 const mongoose = require('mongoose');
+const User = require('../Models/User');
+
+/**
+ * Helper function to get a consistent user ID string regardless of input format
+ * @param {string|object} userId - User ID in any format
+ * @returns {string|null} - User ID as string or null
+ */
+const getUserIdString = (userId) => {
+  if (!userId) return null;
+  
+  // Handle object with _id property (like req.user)
+  if (typeof userId === 'object') {
+    if (userId._id) return userId._id.toString();
+    // Handle Mongoose ObjectId
+    if (userId.toString) return userId.toString();
+    return null;
+  }
+  
+  // Handle string ID
+  return userId.toString();
+};
 
 /**
  * Get all courses
@@ -21,15 +43,64 @@ const getAllCourses = async () => {
 /**
  * Get a single course by ID with its sections and modules
  * @param {string} courseId - The course ID
+ * @param {string} userId - The user ID requesting access
  * @returns {Promise<Object>} Course with sections and modules
  */
-const getCourseById = async (courseId) => {
+const getCourseById = async (courseId, userId) => {
   try {
     const course = await Course.findById(courseId)
       .populate('createdBy', 'name email');
     
     if (!course) {
       throw new Error('Course not found');
+    }
+    
+    // Get user from database to check roles
+    console.log('User ID received:', userId);
+    console.log('Type of userId:', typeof userId);
+    
+    // Use helper to get consistent userId
+    const userIdStr = getUserIdString(userId);
+    console.log('Normalized userId:', userIdStr);
+    
+    // Get user from DB using the normalized ID
+    const user = await User.findById(userIdStr);
+    console.log('User found:', user ? `ID: ${user._id}, Name: ${user.name}` : 'None');
+    
+    // Course creator check
+    const courseCreatorId = getUserIdString(course.createdBy);
+    
+    const isCreator = courseCreatorId === userIdStr;
+    const isAdmin = user?.isAdmin === true;
+    
+    // Log all details for debugging
+    console.log('Course access detailed check:', { 
+      isCreator, 
+      isAdmin, 
+      courseCreator: courseCreatorId,
+      userId: userIdStr,
+      originalUserId: userId
+    });
+    
+    let isEnrolled = false;
+    
+    // Skip enrollment check for creators and admins
+    if (!isCreator && !isAdmin) {
+      const enrollment = await Enrollment.findOne({
+        courseId: course._id,
+        userId: userIdStr,
+        isEnrolled: true
+      });
+      
+      isEnrolled = !!enrollment;
+      
+      // If user is not the creator/admin and not enrolled, throw error
+      if (!isEnrolled) {
+        throw new Error('You need to enroll in this course to view it');
+      }
+    } else {
+      // Automatically consider creators and admins as "enrolled" for UI purposes
+      isEnrolled = true;
     }
     
     // Get sections for this course
@@ -46,10 +117,64 @@ const getCourseById = async (courseId) => {
     
     return {
       ...course.toObject(),
-      sections: sectionsWithModules
+      sections: sectionsWithModules,
+      isCreator,
+      isEnrolled
     };
   } catch (error) {
     throw new Error(`Error fetching course: ${error.message}`);
+  }
+};
+
+/**
+ * Check if a user is enrolled in a course
+ * @param {string} courseId - The course ID
+ * @param {string} userId - The user ID 
+ * @returns {Promise<boolean>} True if enrolled, false otherwise
+ */
+const checkEnrollment = async (courseId, userId) => {
+  try {
+    const enrollment = await Enrollment.findOne({
+      courseId,
+      userId,
+      isEnrolled: true
+    });
+    
+    return !!enrollment;
+  } catch (error) {
+    throw new Error(`Error checking enrollment: ${error.message}`);
+  }
+};
+
+/**
+ * Check if a user is the creator of a course
+ * @param {string} courseId - The course ID
+ * @param {string} userId - The user ID 
+ * @returns {Promise<boolean>} True if creator, false otherwise
+ */
+const isCreator = async (courseId, userId) => {
+  try {
+    const course = await Course.findById(courseId);
+    
+    if (!course) {
+      throw new Error('Course not found');
+    }
+    
+    // Use helper for consistent user ID handling
+    const userIdStr = getUserIdString(userId);
+    const courseCreatorId = getUserIdString(course.createdBy);
+    
+    console.log('Creator check detailed:', { 
+      courseCreatorId, 
+      userIdStr, 
+      match: courseCreatorId === userIdStr,
+      originalUserId: userId
+    });
+    
+    return courseCreatorId === userIdStr;
+  } catch (error) {
+    console.error('Error checking creator status:', error);
+    throw new Error(`Error checking creator status: ${error.message}`);
   }
 };
 
@@ -113,78 +238,67 @@ const updateCourse = async (courseId, courseData, imageBuffer, userId, isAdmin, 
       throw new Error('Course not found');
     }
     
-    // Check if user is authorized to edit this course
-    // Allow if: user is an admin, or user is the creator
-    if (!isAdmin && course.createdBy.toString() !== userId) {
-      throw new Error('You do not have permission to update this course. Only admins or the course creator can edit courses.');
+    // Check if user is creator or admin
+    if (course.createdBy.toString() !== userId && !isAdmin) {
+      throw new Error('Not authorized to update this course');
     }
     
-    // Upload image to cloudinary if provided
-    let imageUrl = course.imageUrl;
+    // Handle image upload if provided
     if (imageBuffer) {
-      const result = await uploadToCloudinary(imageBuffer);
-      imageUrl = result.secure_url;
+      const uploadResult = await uploadToCloudinary(imageBuffer);
+      courseData.imageUrl = uploadResult.secure_url;
     }
     
-    // Update fields
-    if (courseData.title) course.title = courseData.title;
-    if (courseData.description) course.description = courseData.description;
-    if (courseData.isOptional !== undefined) {
-      course.isOptional = courseData.isOptional === 'true';
-    }
-    if (courseData.deadline !== undefined) {
-      course.deadline = courseData.deadline ? new Date(courseData.deadline) : null;
-    }
-    if (imageUrl) course.imageUrl = imageUrl;
+    // Update course
+    const updatedCourse = await Course.findByIdAndUpdate(
+      courseId,
+      { $set: courseData },
+      { new: true }
+    ).populate('createdBy', 'name email');
     
-    await course.save();
-    return course;
+    return updatedCourse;
   } catch (error) {
     throw new Error(`Error updating course: ${error.message}`);
   }
 };
 
 /**
- * Delete a course and all its related data
- * @param {string} courseId - Course ID
- * @param {string} userId - User ID of deleter
+ * Delete a course
+ * @param {string} courseId - Course ID to delete
+ * @param {string} userId - User ID deleting the course
  * @param {boolean} isAdmin - Whether the user is an admin
- * @returns {Promise<boolean>} Success flag
+ * @returns {Promise<Object>} Deletion result
  */
 const deleteCourse = async (courseId, userId, isAdmin) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  
   try {
-    const course = await Course.findById(courseId).session(session);
+    const course = await Course.findById(courseId);
     
     if (!course) {
       throw new Error('Course not found');
     }
     
-    // Check if user is authorized to delete this course
-    if (!isAdmin && course.createdBy.toString() !== userId) {
-      throw new Error('You do not have permission to delete this course. Only admins or the course creator can delete courses.');
+    // Check if user is creator or admin
+    if (course.createdBy.toString() !== userId && !isAdmin) {
+      throw new Error('Not authorized to delete this course');
     }
     
-    // Delete all sections and their modules
-    const sections = await Section.find({ courseId }).session(session);
+    // Delete sections and modules
+    const sections = await Section.find({ courseId });
     for (const section of sections) {
-      await Module.deleteMany({ sectionId: section._id }).session(session);
+      await Module.deleteMany({ sectionId: section._id });
     }
     
-    await Section.deleteMany({ courseId }).session(session);
+    await Section.deleteMany({ courseId });
+    
+    // Delete enrollments for this course
+    await Enrollment.deleteMany({ courseId });
     
     // Delete the course
-    await Course.findByIdAndDelete(courseId).session(session);
+    await Course.findByIdAndDelete(courseId);
     
-    await session.commitTransaction();
-    return true;
+    return { success: true, message: 'Course and all related data deleted successfully' };
   } catch (error) {
-    await session.abortTransaction();
     throw new Error(`Error deleting course: ${error.message}`);
-  } finally {
-    session.endSession();
   }
 };
 
@@ -193,5 +307,8 @@ module.exports = {
   getCourseById,
   createCourse,
   updateCourse,
-  deleteCourse
+  deleteCourse,
+  checkEnrollment,
+  isCreator,
+  getUserIdString
 }; 

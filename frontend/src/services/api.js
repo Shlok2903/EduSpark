@@ -15,7 +15,11 @@ api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('jwtToken');
     if (token) {
-      config.headers['Authorization'] = token;
+      // Log token for debugging
+      console.log('Using token:', token.substring(0, 10) + '...');
+      config.headers['Authorization'] = `Bearer ${token}`;
+    } else {
+      console.warn('No token found in localStorage');
     }
     return config;
   },
@@ -54,6 +58,12 @@ export const authService = {
   login: (credentials) => api.post('/auth/login', credentials),
   signup: (userData) => api.post('/auth/signup', userData),
   tutorSignup: (userData) => api.post('/auth/tutorsignup', userData)
+};
+
+// User services
+export const userService = {
+  getUserProfile: () => api.get('/users/profile'),
+  updateUserProfile: (userData) => api.put('/users/profile', userData)
 };
 
 // Course services
@@ -116,11 +126,9 @@ export const courseService = {
     throw error;
   }),
   
-  // Enroll in a course (placeholder for future implementation)
+  // Enroll in a course
   enrollInCourse: (courseId) => {
-    // This would be implemented when you build the enrollment feature
-    console.log(`Enrolling in course ${courseId}`);
-    return Promise.resolve({ success: true, message: 'Enrolled successfully' });
+    return enrollmentService.enrollCourse(courseId);
   }
 };
 
@@ -236,6 +244,33 @@ export const moduleService = {
         console.error('Modules order update error:', error);
         throw error;
       })
+};
+
+// Enrollment services
+export const enrollmentService = {
+  // Enroll in a course
+  enrollCourse: (courseId) => api.post('/enrollments/enroll', { courseId }),
+  
+  // Get enrollment status for a course
+  getEnrollmentStatus: (courseId) => api.get(`/enrollments/status/${courseId}`),
+  
+  // Get all courses a user is enrolled in
+  getUserEnrollments: () => api.get('/enrollments/user'),
+  
+  // Mark a module as completed
+  completeModule: (courseId, moduleId) => api.post('/enrollments/complete-module', { 
+    courseId, 
+    moduleId 
+  }),
+  
+  // Get module completion status
+  getModuleCompletionStatus: (moduleId) => api.get(`/enrollments/module/${moduleId}`),
+  
+  // Get all enrolled users for a course (for course creators)
+  getCourseEnrollments: (courseId) => api.get(`/enrollments/course/${courseId}`),
+  
+  // Unenroll from a course
+  unenrollCourse: (courseId) => api.delete(`/enrollments/${courseId}`)
 };
 
 // Export the base API for custom calls

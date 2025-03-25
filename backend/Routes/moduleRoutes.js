@@ -1,24 +1,25 @@
 const express = require('express');
 const router = express.Router();
 const ModuleController = require('../Controllers/ModuleController');
-const verifyToken = require('../Middlewares/Auth');
+const { verifyToken } = require('../Middlewares/AuthMiddleware');
+const { isCreatorOrAdmin, isEnrolledOrCreator } = require('../Middlewares/CourseAccessMiddleware');
 
-// Get all modules for a section
-router.get('/sections/:sectionId/modules', verifyToken, ModuleController.getModulesBySectionId);
+// Get all modules for a section - requires enrollment or creator
+router.get('/sections/:sectionId/modules', verifyToken, isEnrolledOrCreator, ModuleController.getModulesBySectionId);
 
-// Get a specific module by ID
-router.get('/modules/:moduleId', verifyToken, ModuleController.getModuleById);
+// Get a specific module by ID - requires enrollment or creator
+router.get('/modules/:moduleId', verifyToken, isEnrolledOrCreator, ModuleController.getModuleById);
 
-// Create a new module for a section
-router.post('/courses/:courseId/sections/:sectionId/modules', verifyToken, ModuleController.createModule);
+// Create a new module for a section - requires creator or admin
+router.post('/courses/:courseId/sections/:sectionId/modules', verifyToken, isCreatorOrAdmin, ModuleController.createModule);
 
-// Update a module
-router.put('/modules/:moduleId', verifyToken, ModuleController.updateModule);
+// Update a module - requires creator or admin
+router.put('/modules/:moduleId', verifyToken, isCreatorOrAdmin, ModuleController.updateModule);
 
-// Delete a module
-router.delete('/modules/:moduleId', verifyToken, ModuleController.deleteModule);
+// Delete a module - requires creator or admin
+router.delete('/modules/:moduleId', verifyToken, isCreatorOrAdmin, ModuleController.deleteModule);
 
-// Update modules order
-router.put('/sections/:sectionId/modules/order', verifyToken, ModuleController.updateModulesOrder);
+// Update modules order - requires creator or admin
+router.put('/sections/:sectionId/modules/order', verifyToken, isCreatorOrAdmin, ModuleController.updateModulesOrder);
 
 module.exports = router; 
