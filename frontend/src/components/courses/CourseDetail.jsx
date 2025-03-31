@@ -668,6 +668,12 @@ const CourseDetail = () => {
     const scorePercentage = (correctAnswers / questions.length) * 100;
     setQuizScore(scorePercentage);
     setQuizSubmitted(true);
+
+    // Track quiz completion if score meets passing threshold
+    const passingScore = currentModule.quizContent.passingScore || 70;
+    if (scorePercentage >= passingScore) {
+      handleQuizCompletion(currentModule._id, scorePercentage, passingScore);
+    }
   };
   
   // Handle enrollment status change
@@ -712,8 +718,20 @@ const CourseDetail = () => {
       await enrollmentService.trackModuleView(courseId, module._id);
       setModuleViewRecorded(true);
       
-      // Refresh course details to update progress
-      fetchCourseDetails();
+      // Update both progress bars immediately
+      const updatedEnrollmentData = await enrollmentService.getEnrollmentStatus(courseId);
+      setUserState(prev => ({
+        ...prev,
+        enrollmentData: updatedEnrollmentData
+      }));
+
+      // Update video progress if it's a video module
+      if (module.contentType === 'video') {
+        setVideoProgress(prev => ({
+          ...prev,
+          [module._id]: 100 // Set to 100% when module is completed
+        }));
+      }
     } catch (error) {
       console.error('Error tracking module view:', error);
     }
@@ -739,10 +757,43 @@ const CourseDetail = () => {
       await enrollmentService.trackModuleView(courseId, moduleId);
       setModuleViewRecorded(true);
       
-      // Refresh course details to update progress
-      fetchCourseDetails();
+      // Update both progress bars immediately
+      const updatedEnrollmentData = await enrollmentService.getEnrollmentStatus(courseId);
+      setUserState(prev => ({
+        ...prev,
+        enrollmentData: updatedEnrollmentData
+      }));
+
+      // Update video progress
+      setVideoProgress(prev => ({
+        ...prev,
+        [moduleId]: 100 // Set to 100% when video is completed
+      }));
     } catch (error) {
       console.error('Error tracking module completion:', error);
+    }
+  };
+  
+  // Update the handleQuizCompletion function
+  const handleQuizCompletion = async (moduleId, score, passingScore) => {
+    if (!userState.isEnrolled || userState.isCreator || moduleViewRecorded) return;
+    
+    // Only mark as complete if the score meets or exceeds the passing score
+    if (score >= passingScore) {
+      try {
+        // Track that the user has completed this module
+        await enrollmentService.trackModuleView(courseId, moduleId);
+        setModuleViewRecorded(true);
+        
+        // Update both progress bars immediately
+        const updatedEnrollmentData = await enrollmentService.getEnrollmentStatus(courseId);
+        setUserState(prev => ({
+          ...prev,
+          enrollmentData: updatedEnrollmentData
+        }));
+      } catch (error) {
+        console.error('Error tracking quiz completion:', error);
+      }
     }
   };
   
@@ -1027,6 +1078,28 @@ const CourseDetail = () => {
       };
     }
   }, [currentModule]);
+
+  // Add scroll handler
+  useEffect(() => {
+    const contentBox = document.querySelector('.content-box');
+    let scrollTimeout;
+
+    const handleScroll = () => {
+      contentBox.classList.add('scrolling');
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        contentBox.classList.remove('scrolling');
+      }, 1000); // Hide scrollbar 1 second after scrolling stops
+    };
+
+    if (contentBox) {
+      contentBox.addEventListener('scroll', handleScroll);
+      return () => {
+        contentBox.removeEventListener('scroll', handleScroll);
+        clearTimeout(scrollTimeout);
+      };
+    }
+  }, []);
   
   if (loading) {
     return (
@@ -1072,15 +1145,34 @@ const CourseDetail = () => {
   }
   
   return (
-    <Container maxWidth="xl" sx={{ minHeight: '100vh' }}>
-      <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+    <Container maxWidth="xl" sx={{ height: '100vh', overflow: 'hidden' }}>
+      <Box sx={{ display: 'flex', height: '100vh' }}>
         <Sidebar />
-        <Box sx={{ 
+        <Box className="content-box" sx={{ 
           flexGrow: 1, 
           p: 3,
           width: '100%',
           maxWidth: 'calc(100% - 240px)', // 240px is the width of the sidebar
-          minHeight: '100vh'
+          height: '100vh',
+          overflowY: 'auto', // Add vertical scroll
+          '&::-webkit-scrollbar': {
+            width: '8px',
+            display: 'none',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: '#f1f1f1',
+            borderRadius: '4px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: '#888',
+            borderRadius: '4px',
+            '&:hover': {
+              background: '#555',
+            },
+          },
+          '&.scrolling::-webkit-scrollbar': {
+            display: 'block',
+          },
         }}>
           {/* Breadcrumbs navigation */}
           <Breadcrumbs sx={{ mb: 2 }}>

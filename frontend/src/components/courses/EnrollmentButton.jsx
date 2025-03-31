@@ -90,7 +90,7 @@ const EnrollmentButton = ({ courseId, onEnrollmentChange }) => {
     return (
       <Box>
         <Typography variant="body2" color="textSecondary">
-          Enrolled on: {new Date(enrollmentStatus.enrollmentDate).toLocaleDateString()}
+          Enrolled on: {new Date(enrollmentStatus.enrollmentDate).toLocaleDateString('en-GB')}
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
           <Typography variant="body2" sx={{ mr: 1 }}>

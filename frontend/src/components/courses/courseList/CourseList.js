@@ -98,6 +98,28 @@ function Courses() {
         fetchCourses();
     };
     
+    // Add scroll handler
+    useEffect(() => {
+        const mainContent = document.querySelector('.main-content');
+        let scrollTimeout;
+
+        const handleScroll = () => {
+            mainContent.classList.add('scrolling');
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(() => {
+                mainContent.classList.remove('scrolling');
+            }, 1000); // Hide scrollbar 1 second after scrolling stops
+        };
+
+        if (mainContent) {
+            mainContent.addEventListener('scroll', handleScroll);
+            return () => {
+                mainContent.removeEventListener('scroll', handleScroll);
+                clearTimeout(scrollTimeout);
+            };
+        }
+    }, []);
+    
     return (
         <div className="home-container">
             <Sidebar />
