@@ -55,7 +55,7 @@ const login = async (credentials) => {
     const response = await api.post('/auth/login', credentials);
     
     if (response.success) {
-      console.log('Login response data:', response);
+      // Store the JWT token and user data
       storeUserSession(response.jwtToken, {
         name: response.name,
         email: response.email,
@@ -63,12 +63,30 @@ const login = async (credentials) => {
         isTutor: response.isTutor,
         id: response.id || response._id
       });
+      
+      // Return a properly formatted response
+      return {
+        success: true,
+        data: {
+          name: response.name,
+          email: response.email,
+          isAdmin: response.isAdmin,
+          isTutor: response.isTutor,
+          id: response.id || response._id
+        }
+      };
     }
     
-    return response;
+    return {
+      success: false,
+      message: response.message || 'Login failed'
+    };
   } catch (error) {
     console.error('Login error:', error);
-    throw error;
+    return {
+      success: false,
+      message: error.formattedMessage || 'An error occurred during login'
+    };
   }
 };
 

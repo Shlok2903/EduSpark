@@ -22,8 +22,23 @@ const UserSchema = new Schema({
   isTutor: {
     type: Boolean,
     default: false
-  }
+  },
+  enrolledCourses: [{
+    type: Schema.Types.ObjectId,
+    ref: 'courses'
+  }]
 });
+
+// Add method to check if user is enrolled in a course
+UserSchema.methods.isEnrolledIn = async function(courseId) {
+  const Enrollment = mongoose.model('enrollments');
+  const enrollment = await Enrollment.findOne({
+    userId: this._id,
+    courseId: courseId,
+    isEnrolled: true
+  });
+  return !!enrollment;
+};
 
 const UserModel = mongoose.model("users", UserSchema);
 module.exports = UserModel;

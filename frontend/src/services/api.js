@@ -270,7 +270,13 @@ export const enrollmentService = {
   getCourseEnrollments: (courseId) => api.get(`/enrollments/course/${courseId}`),
   
   // Unenroll from a course
-  unenrollCourse: (courseId) => api.delete(`/enrollments/${courseId}`)
+  unenrollCourse: (courseId) => api.delete(`/enrollments/${courseId}`),
+  
+  // Track module view and automatically mark as complete
+  trackModuleView: (courseId, moduleId) => api.post('/enrollments/track-view', { 
+    courseId, 
+    moduleId 
+  })
 };
 
 // Export the base API for custom calls

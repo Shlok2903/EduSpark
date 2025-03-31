@@ -299,4 +299,82 @@ exports.getModuleCompletionStatus = async (req, res) => {
     console.error('Error in getModuleCompletionStatus:', error);
     return res.status(500).json({ message: 'Server error', error: error.message });
   }
+};
+
+// Track module view and automatically mark as complete
+exports.trackModuleView = async (req, res) => {
+  try {
+    const { courseId, moduleId } = req.body;
+    const userId = req.user.id;
+
+    // Find the enrollment
+    const enrollment = await Enrollment.findOne({
+      courseId,
+      userId
+    });
+
+    if (!enrollment) {
+      return res.status(404).json({ message: 'Enrollment not found' });
+    }
+
+    // Find the module to ensure it exists
+    const module = await Module.findOne({
+      _id: moduleId,
+      courseId
+    });
+
+    if (!module) {
+      return res.status(404).json({ message: 'Module not found' });
+    }
+
+    // Find and update the module progress in the enrollment
+    let moduleFound = false;
+    let totalModules = 0;
+    let completedModules = 0;
+
+    for (const section of enrollment.sectionProgress) {
+      totalModules += section.moduleProgress.length;
+      
+      for (const moduleProgress of section.moduleProgress) {
+        if (moduleProgress.isCompleted) {
+          completedModules++;
+        }
+        
+        if (moduleProgress.moduleId.toString() === moduleId) {
+          // Mark as completed if not already completed
+          if (!moduleProgress.isCompleted) {
+            moduleProgress.isCompleted = true;
+            moduleProgress.completedAt = new Date();
+            completedModules++;
+          }
+          moduleFound = true;
+        }
+      }
+      
+      // Check if all modules in the section are completed
+      const allModulesCompleted = section.moduleProgress.every(mp => mp.isCompleted);
+      if (allModulesCompleted && !section.isCompleted) {
+        section.isCompleted = true;
+        section.completedAt = new Date();
+      }
+    }
+
+    if (!moduleFound) {
+      return res.status(404).json({ message: 'Module not found in the enrollment' });
+    }
+
+    // Update overall progress percentage
+    enrollment.progress = Math.round((completedModules / totalModules) * 100);
+    enrollment.lastAccessedAt = new Date();
+
+    await enrollment.save();
+
+    return res.status(200).json({
+      message: 'Module progress updated',
+      progress: enrollment.progress
+    });
+  } catch (error) {
+    console.error('Error in trackModuleView:', error);
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
 }; 

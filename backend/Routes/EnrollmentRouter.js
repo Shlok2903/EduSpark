@@ -24,4 +24,7 @@ router.delete('/:courseId', verifyToken, enrollmentController.unenrollCourse);
 // Get module completion status
 router.get('/module/:moduleId', verifyToken, enrollmentController.getModuleCompletionStatus);
 
+// Add new route for tracking module views
+router.post('/track-view', verifyToken, enrollmentController.trackModuleView);
+
 module.exports = router; 

@@ -37,7 +37,8 @@ import {
   FormControlLabel,
   Card,
   CardContent,
-  LinearProgress
+  LinearProgress,
+  Slider
 } from '@mui/material';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -59,6 +60,9 @@ import QuizIcon from '@mui/icons-material/Quiz';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import EnrollmentButton from './EnrollmentButton';
 import CloseIcon from '@mui/icons-material/Close';
+import PauseIcon from '@mui/icons-material/Pause';
+import VolumeOffIcon from '@mui/icons-material/VolumeOff';
+import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 
 // Module type Icons by content type
 const ModuleTypeIcon = ({ type }) => {
@@ -128,6 +132,12 @@ const CourseDetail = () => {
   const [quizAnswers, setQuizAnswers] = useState({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [quizScore, setQuizScore] = useState(0);
+  
+  // Add this state to track if module view has been recorded
+  const [moduleViewRecorded, setModuleViewRecorded] = useState(false);
+  
+  // Add new state for video tracking
+  const [videoProgress, setVideoProgress] = useState({});
   
   // Fetch course details
   const fetchCourseDetails = async () => {
@@ -550,6 +560,7 @@ const CourseDetail = () => {
   // Handle module view
   const handleViewModule = (module) => {
     setCurrentModule(module);
+    setModuleViewRecorded(false);  // Reset the flag when opening a new module
     
     // Reset quiz state if it's a quiz
     if (module.contentType === 'quizz') {
@@ -559,6 +570,11 @@ const CourseDetail = () => {
     }
     
     setOpenModuleViewDialog(true);
+    
+    // Track the view after the dialog is opened
+    if (!userState.isCreator && userState.isEnrolled) {
+      handleModuleView(module);
+    }
   };
   
   const handleCloseModuleViewDialog = () => {
@@ -687,30 +703,127 @@ const CourseDetail = () => {
     return null;
   };
   
+  // Modify handleModuleView to use the flag
+  const handleModuleView = async (module) => {
+    if (!userState.isEnrolled || userState.isCreator || moduleViewRecorded) return;
+    
+    try {
+      // Track that the user has viewed this module
+      await enrollmentService.trackModuleView(courseId, module._id);
+      setModuleViewRecorded(true);
+      
+      // Refresh course details to update progress
+      fetchCourseDetails();
+    } catch (error) {
+      console.error('Error tracking module view:', error);
+    }
+  };
+  
+  // Add function to handle video progress
+  const handleVideoProgress = (moduleId, event) => {
+    const video = event.target;
+    const progress = (video.currentTime / video.duration) * 100;
+    
+    setVideoProgress(prev => ({
+      ...prev,
+      [moduleId]: progress
+    }));
+  };
+  
+  // Add function to handle video completion
+  const handleVideoComplete = async (moduleId) => {
+    if (!userState.isEnrolled || userState.isCreator || moduleViewRecorded) return;
+    
+    try {
+      // Track that the user has completed this module
+      await enrollmentService.trackModuleView(courseId, moduleId);
+      setModuleViewRecorded(true);
+      
+      // Refresh course details to update progress
+      fetchCourseDetails();
+    } catch (error) {
+      console.error('Error tracking module completion:', error);
+    }
+  };
+  
+  // Update the getYouTubeVideoId function to handle more URL formats
+  const getYouTubeVideoId = (url) => {
+    if (!url) return null;
+    
+    // Handle different YouTube URL formats
+    const patterns = [
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^"&?\/\s]{11})/i,
+      /youtube\.com\/v\/([^"&?\/\s]{11})/i
+    ];
+
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+    
+    return null;
+  };
+  
   // Render module content based on type
   const renderModuleContent = () => {
     if (!currentModule) return null;
     
     switch (currentModule.contentType) {
       case 'video':
+        // Extract video ID from the URL
+        const videoUrl = currentModule.videoContent.videoUrl;
+        const videoId = getYouTubeVideoId(videoUrl);
+        
+        if (!videoId) {
+          return (
+            <Alert severity="error">
+              Invalid YouTube video URL. Please check the URL format.
+            </Alert>
+          );
+        }
+
         return (
-          <Box sx={{ width: '100%', textAlign: 'center' }}>
-            <iframe
-              width="100%"
-              height="480"
-              src={currentModule.videoContent?.videoUrl}
-              title={currentModule.title}
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            ></iframe>
+          <Box sx={{ width: '100%' }}>
+            <Box sx={{ 
+              width: '100%', 
+              aspectRatio: '16/9', 
+              mb: 2,
+              position: 'relative',
+              bgcolor: '#000',
+              borderRadius: '8px',
+              overflow: 'hidden'
+            }}>
+              {/* YouTube Player with default controls */}
+              <iframe
+                width="100%"
+                height="100%"
+                src={`https://www.youtube.com/embed/${videoId}`}
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </Box>
+            
+            {/* Video Progress Bar */}
+            <Box sx={{ width: '100%', mt: 2 }}>
+              <Typography variant="body2" gutterBottom>
+                Video Progress: {Math.round(videoProgress[currentModule._id] || 0)}%
+              </Typography>
+              <LinearProgress 
+                variant="determinate" 
+                value={videoProgress[currentModule._id] || 0} 
+                sx={{ height: 8, borderRadius: 4 }}
+              />
+            </Box>
           </Box>
         );
       
       case 'text':
         return (
           <Box sx={{ p: 2 }}>
-            <DialogContentText component="div" dangerouslySetInnerHTML={{ __html: currentModule.textContent?.content }} />
+            <div dangerouslySetInnerHTML={{ __html: currentModule.textContent.content }} />
           </Box>
         );
       
@@ -900,6 +1013,21 @@ const CourseDetail = () => {
     }
   };
   
+  // Update the useEffect for video completion
+  useEffect(() => {
+    if (currentModule?.contentType === 'video' && currentModule.videoContent?.videoUrl) {
+      // Track video completion when the video ends
+      const handleVideoEnd = () => {
+        handleVideoComplete(currentModule._id);
+      };
+
+      window.addEventListener('videoComplete', handleVideoEnd);
+      return () => {
+        window.removeEventListener('videoComplete', handleVideoEnd);
+      };
+    }
+  }, [currentModule]);
+  
   if (loading) {
     return (
       <div className="home-container">
@@ -944,10 +1072,16 @@ const CourseDetail = () => {
   }
   
   return (
-    <Container maxWidth="xl">
-      <Box sx={{ display: 'flex' }}>
+    <Container maxWidth="xl" sx={{ minHeight: '100vh' }}>
+      <Box sx={{ display: 'flex', minHeight: '100vh' }}>
         <Sidebar />
-        <Box sx={{ flexGrow: 1, p: 3 }}>
+        <Box sx={{ 
+          flexGrow: 1, 
+          p: 3,
+          width: '100%',
+          maxWidth: 'calc(100% - 240px)', // 240px is the width of the sidebar
+          minHeight: '100vh'
+        }}>
           {/* Breadcrumbs navigation */}
           <Breadcrumbs sx={{ mb: 2 }}>
             <Link color="inherit" href="/courses" underline="hover">
@@ -967,7 +1101,7 @@ const CourseDetail = () => {
           ) : (
             <>
               {/* Course Header */}
-              <Paper elevation={2} sx={{ p: 3, mb: 3, borderRadius: '12px' }}>
+              <Paper elevation={2} sx={{ p: 3, mb: 3, borderRadius: '12px', minHeight: '200px' }}>
                 <Grid container spacing={2}>
                   <Grid item xs={12} md={8}>
                     <Typography variant="h4" sx={{ mb: 1, fontWeight: 500 }}>
@@ -1016,10 +1150,12 @@ const CourseDetail = () => {
                         Add Section
                       </Button>
                     ) : (
-                      <EnrollmentButton 
-                        courseId={courseId} 
-                        onEnrollmentChange={handleEnrollmentChange} 
-                      />
+                      <Box sx={{ minHeight: '40px' }}> {/* Add fixed height container */}
+                        <EnrollmentButton 
+                          courseId={courseId} 
+                          onEnrollmentChange={handleEnrollmentChange} 
+                        />
+                      </Box>
                     )}
                   </Grid>
                 </Grid>
@@ -1211,28 +1347,6 @@ const CourseDetail = () => {
           {renderModuleContent()}
         </DialogContent>
         <DialogActions>
-          {/* Mark as complete button for enrolled students */}
-          {userState.isEnrolled && currentModule && (
-            <Button 
-              onClick={() => {
-                // Call API to mark module as complete
-                enrollmentService.completeModule(courseId, currentModule._id)
-                  .then(response => {
-                    handleSuccess('Module marked as completed');
-                    // Refresh enrollment data
-                    fetchCourseDetails();
-                    handleCloseModuleViewDialog();
-                  })
-                  .catch(error => {
-                    handleError('Failed to mark module as completed');
-                    console.error('Error marking module as complete:', error);
-                  });
-              }}
-              color="primary"
-            >
-              Mark as Complete
-            </Button>
-          )}
           <Button onClick={handleCloseModuleViewDialog}>
             Close
           </Button>

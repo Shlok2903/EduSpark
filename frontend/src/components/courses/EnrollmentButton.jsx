@@ -77,36 +77,6 @@ const EnrollmentButton = ({ courseId, onEnrollmentChange }) => {
     }
   };
 
-  const handleUnenroll = async () => {
-    try {
-      setEnrollmentStatus(prev => ({ ...prev, loading: true, error: null }));
-      
-      await enrollmentService.unenrollCourse(courseId);
-      
-      setEnrollmentStatus({
-        isEnrolled: false,
-        progress: 0,
-        loading: false,
-        error: null
-      });
-      
-      handleSuccess('Successfully unenrolled from the course');
-      
-      // Call the parent callback if it exists
-      if (onEnrollmentChange) {
-        onEnrollmentChange(false);
-      }
-    } catch (error) {
-      console.error('Error unenrolling from course:', error);
-      setEnrollmentStatus(prev => ({ 
-        ...prev, 
-        loading: false, 
-        error: 'Failed to unenroll from the course' 
-      }));
-      handleError(error.formattedMessage || 'Failed to unenroll from the course');
-    }
-  };
-
   if (enrollmentStatus.loading) {
     return (
       <Button variant="contained" disabled>
@@ -119,14 +89,6 @@ const EnrollmentButton = ({ courseId, onEnrollmentChange }) => {
   if (enrollmentStatus.isEnrolled) {
     return (
       <Box>
-        <Button 
-          variant="outlined" 
-          color="secondary"
-          onClick={handleUnenroll}
-          sx={{ mt: 1, mb: 1 }}
-        >
-          Unenroll
-        </Button>
         <Typography variant="body2" color="textSecondary">
           Enrolled on: {new Date(enrollmentStatus.enrollmentDate).toLocaleDateString()}
         </Typography>

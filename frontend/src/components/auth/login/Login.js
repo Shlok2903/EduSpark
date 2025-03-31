@@ -100,35 +100,37 @@ function Login() {
         password: ''
     });
     const [showPassword, setShowPassword] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setIsLoading(true);
         dispatch(loginStart());
         
         try {
             const result = await authService.login(formData);
             
             if (result.success) {
-                handleSuccess('Login successful');
-                dispatch(loginSuccess({ 
-                    name: result.data.name, 
-                    email: result.data.email,
-                    isAdmin: result.data.isAdmin,
-                    isTutor: result.data.isTutor,
-                    id: result.data.id
-                }));
+                // First dispatch success to Redux
+                dispatch(loginSuccess(result.data));
                 
-                // Add a small delay before navigation
+                // Show success message
+                handleSuccess('Login successful! Redirecting...');
+                
+                // Set a small delay before navigation to allow the success message to be seen
                 setTimeout(() => {
                     navigate('/home');
-                }, 1000);
+                }, 1500);
             } else {
-                handleError(result.message || 'Login failed');
                 dispatch(loginFailure(result.message));
+                handleError(result.message);
             }
         } catch (error) {
-            handleError('An error occurred during login');
-            dispatch(loginFailure('Login failed'));
+            const errorMessage = error.message || 'An error occurred during login';
+            dispatch(loginFailure(errorMessage));
+            handleError(errorMessage);
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -185,6 +187,7 @@ function Login() {
                             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                             placeholder="abc@xyz.com"
                             variant="outlined"
+                            required
                             sx={{
                                 '& .MuiOutlinedInput-root': {
                                     borderRadius: '8px',
@@ -212,6 +215,7 @@ function Login() {
                             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                             placeholder="*********"
                             variant="outlined"
+                            required
                             sx={{
                                 '& .MuiOutlinedInput-root': {
                                     borderRadius: '8px',
@@ -233,6 +237,7 @@ function Login() {
                         fullWidth
                         type="submit"
                         variant="contained"
+                        disabled={isLoading}
                         sx={{
                             mt: 2,
                             mb: 2,
@@ -249,7 +254,7 @@ function Login() {
                             }
                         }}
                     >
-                        Sign In
+                        {isLoading ? 'Signing in...' : 'Sign In'}
                     </Button>
 
                     <Typography 

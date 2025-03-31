@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import { TextField, Button, Box, Typography, Container, Paper, InputAdornment, IconButton } from '@mui/material';
-import { Visibility, VisibilityOff } from '@mui/icons-material';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { handleError, handleSuccess } from '../../../utils';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -121,7 +122,11 @@ function Signup({ isTutor = false }) {
                       onClick={() => setShowPassword(!showPassword)}
                       edge="end"
                     >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                      {showPassword ? (
+                        <VisibilityOffIcon />
+                      ) : (
+                        <VisibilityIcon />
+                      )}
                     </IconButton>
                   </InputAdornment>
                 ),
