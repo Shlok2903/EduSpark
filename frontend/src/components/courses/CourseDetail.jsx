@@ -63,6 +63,8 @@ import CloseIcon from '@mui/icons-material/Close';
 import PauseIcon from '@mui/icons-material/Pause';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
+import axios from 'axios';
+import { useSnackbar } from 'notistack';
 
 // Module type Icons by content type
 const ModuleTypeIcon = ({ type }) => {
@@ -114,7 +116,14 @@ const CourseDetail = () => {
   const [moduleData, setModuleData] = useState({
     title: '',
     description: '',
-    contentType: 'text', // Default to text
+    contentType: 'text',
+    content: {
+      text: '',
+      videoUrl: '',
+      quiz: {
+        questions: []
+      }
+    }
   });
   const [moduleErrors, setModuleErrors] = useState({});
   const [addingModuleLoading, setAddingModuleLoading] = useState(false);
@@ -215,6 +224,12 @@ const CourseDetail = () => {
   
   const handleCloseSectionDialog = () => {
     setOpenSectionDialog(false);
+    setSectionData({
+      title: '',
+      description: '',
+      deadline: null
+    });
+    setSectionErrors({});
   };
   
   const handleSectionChange = (e) => {
@@ -223,8 +238,7 @@ const CourseDetail = () => {
       ...prev,
       [name]: value
     }));
-    
-    // Clear validation error when user types
+    // Clear error when user types
     if (sectionErrors[name]) {
       setSectionErrors(prev => ({
         ...prev,
@@ -233,14 +247,11 @@ const CourseDetail = () => {
     }
   };
   
-  // Add new handler for rich text editor changes
-  const handleSectionRichTextChange = (content) => {
+  const handleSectionRichTextChange = (value) => {
     setSectionData(prev => ({
       ...prev,
-      description: content
+      description: value
     }));
-    
-    // Clear validation error when user edits
     if (sectionErrors.description) {
       setSectionErrors(prev => ({
         ...prev,
@@ -256,48 +267,30 @@ const CourseDetail = () => {
     }));
   };
   
-  const validateSectionForm = () => {
+  const handleAddSection = async () => {
+    // Validate
     const errors = {};
-    
     if (!sectionData.title.trim()) {
       errors.title = 'Title is required';
     }
-    
     if (!sectionData.description.trim()) {
       errors.description = 'Description is required';
     }
     
-    setSectionErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-  
-  const handleAddSection = async () => {
-    if (!validateSectionForm()) {
+    if (Object.keys(errors).length > 0) {
+      setSectionErrors(errors);
       return;
     }
-    
+
     setAddingSectionLoading(true);
-    
     try {
-      // Make the actual API call to create a section
-      const response = await sectionService.createSection(courseId, {
-        title: sectionData.title,
-        description: sectionData.description,
-        deadline: sectionData.deadline
-      });
-      
-      if (response.success) {
-        // Refresh course data to get the updated sections
-        await fetchCourseDetails();
-        
-        handleSuccess('Section added successfully');
-        handleCloseSectionDialog();
-      } else {
-        handleError(response.message || 'Failed to add section');
-      }
-    } catch (err) {
-      console.error('Error adding section:', err);
-      handleError(err.formattedMessage || 'Failed to add section. Please try again.');
+      const response = await sectionService.createSection(courseId, sectionData);
+      await fetchCourseDetails();
+      handleSuccess('Section added successfully');
+      handleCloseSectionDialog();
+    } catch (error) {
+      console.error('Error adding section:', error);
+      handleError(error.formattedMessage || 'Error adding section. Please try again.');
     } finally {
       setAddingSectionLoading(false);
     }
@@ -310,6 +303,13 @@ const CourseDetail = () => {
       title: '',
       description: '',
       contentType: 'text',
+      content: {
+        text: '',
+        videoUrl: '',
+        quiz: {
+          questions: []
+        }
+      }
     });
     setContentData({
       videoUrl: '',
@@ -323,6 +323,19 @@ const CourseDetail = () => {
   const handleCloseModuleDialog = () => {
     setOpenModuleDialog(false);
     setCurrentSectionId(null);
+    setModuleData({
+      title: '',
+      description: '',
+      contentType: 'text',
+      content: {
+        text: '',
+        videoUrl: '',
+        quiz: {
+          questions: []
+        }
+      }
+    });
+    setModuleErrors({});
   };
   
   const handleModuleChange = (e) => {
@@ -331,8 +344,7 @@ const CourseDetail = () => {
       ...prev,
       [name]: value
     }));
-    
-    // Clear validation error when user types
+    // Clear error when user types
     if (moduleErrors[name]) {
       setModuleErrors(prev => ({
         ...prev,
@@ -343,9 +355,12 @@ const CourseDetail = () => {
   
   const handleContentChange = (e) => {
     const { name, value } = e.target;
-    setContentData(prev => ({
+    setModuleData(prev => ({
       ...prev,
-      [name]: value
+      content: {
+        ...prev.content,
+        [name]: value
+      }
     }));
   };
   
@@ -358,77 +373,126 @@ const CourseDetail = () => {
   };
   
   // Handle quiz question changes
-  const handleQuestionChange = (index, field, value) => {
-    const updatedQuestions = [...contentData.quizQuestions];
-    updatedQuestions[index][field] = value;
-    
-    setContentData(prev => ({
-      ...prev,
-      quizQuestions: updatedQuestions
-    }));
+  const handleQuestionChange = (index, value) => {
+    setModuleData(prev => {
+      const newQuestions = [...prev.content.quiz.questions];
+      newQuestions[index] = {
+        ...newQuestions[index],
+        question: value
+      };
+      return {
+        ...prev,
+        content: {
+          ...prev.content,
+          quiz: {
+            questions: newQuestions
+          }
+        }
+      };
+    });
   };
   
   // Add handler for rich text in quiz questions
   const handleQuestionRichTextChange = (index, content) => {
-    const updatedQuestions = [...contentData.quizQuestions];
-    updatedQuestions[index].question = content;
-    
     setContentData(prev => ({
       ...prev,
-      quizQuestions: updatedQuestions
+      quizQuestions: prev.quizQuestions.map((question, qIndex) =>
+        qIndex === index ? { ...question, question: content } : question
+      )
     }));
   };
   
   // Handle quiz option changes
-  const handleOptionChange = (questionIndex, optionIndex, field, value) => {
-    const updatedQuestions = [...contentData.quizQuestions];
-    
-    if (field === 'isCorrect' && value === true) {
-      // If making this option correct, make all others incorrect
-      updatedQuestions[questionIndex].options.forEach((option, idx) => {
-        option.isCorrect = idx === optionIndex;
-      });
-    } else {
-      updatedQuestions[questionIndex].options[optionIndex][field] = value;
-    }
-    
-    setContentData(prev => ({
-      ...prev,
-      quizQuestions: updatedQuestions
-    }));
+  const handleOptionChange = (questionIndex, optionIndex, value) => {
+    setModuleData(prev => {
+      const newQuestions = [...prev.content.quiz.questions];
+      const newOptions = [...newQuestions[questionIndex].options];
+      newOptions[optionIndex] = value;
+      newQuestions[questionIndex] = {
+        ...newQuestions[questionIndex],
+        options: newOptions
+      };
+      return {
+        ...prev,
+        content: {
+          ...prev.content,
+          quiz: {
+            questions: newQuestions
+          }
+        }
+      };
+    });
   };
   
   // Add handler for rich text in quiz options
   const handleOptionRichTextChange = (questionIndex, optionIndex, content) => {
-    const updatedQuestions = [...contentData.quizQuestions];
-    updatedQuestions[questionIndex].options[optionIndex].text = content;
-    
     setContentData(prev => ({
       ...prev,
-      quizQuestions: updatedQuestions
+      quizQuestions: prev.quizQuestions.map((question, qIndex) =>
+        qIndex === questionIndex ? { ...question, options: question.options.map((option, oIndex) =>
+          oIndex === optionIndex ? { ...option, text: content } : option
+        ) } : question
+      )
     }));
   };
   
   // Add new question to quiz
-  const addQuestion = () => {
-    setContentData(prev => ({
+  const handleAddQuizQuestion = () => {
+    setModuleData(prev => ({
       ...prev,
-      quizQuestions: [
-        ...prev.quizQuestions,
-        { question: '', options: [{ text: '', isCorrect: false }, { text: '', isCorrect: false }] }
-      ]
+      content: {
+        ...prev.content,
+        quiz: {
+          questions: [
+            ...prev.content.quiz.questions,
+            {
+              question: '',
+              options: [''],
+              correctOption: 0
+            }
+          ]
+        }
+      }
     }));
   };
   
   // Add new option to a question
-  const addOption = (questionIndex) => {
-    const updatedQuestions = [...contentData.quizQuestions];
-    updatedQuestions[questionIndex].options.push({ text: '', isCorrect: false });
-    
-    setContentData(prev => ({
-      ...prev,
-      quizQuestions: updatedQuestions
-    }));
+  const handleAddOption = (questionIndex) => {
+    setModuleData(prev => {
+      const newQuestions = [...prev.content.quiz.questions];
+      newQuestions[questionIndex] = {
+        ...newQuestions[questionIndex],
+        options: [...newQuestions[questionIndex].options, '']
+      };
+      return {
+        ...prev,
+        content: {
+          ...prev.content,
+          quiz: {
+            questions: newQuestions
+          }
+        }
+      };
+    });
+  };
+  
+  const handleCorrectOptionChange = (questionIndex, value) => {
+    setModuleData(prev => {
+      const newQuestions = [...prev.content.quiz.questions];
+      newQuestions[questionIndex] = {
+        ...newQuestions[questionIndex],
+        correctOption: parseInt(value)
+      };
+      return {
+        ...prev,
+        content: {
+          ...prev.content,
+          quiz: {
+            questions: newQuestions
+          }
+        }
+      };
+    });
   };
   
   const validateModuleForm = () => {
@@ -443,18 +507,18 @@ const CourseDetail = () => {
     }
     
     // Validate content based on content type
-    if (moduleData.contentType === 'video' && !contentData.videoUrl.trim()) {
+    if (moduleData.contentType === 'video' && !moduleData.content.videoUrl.trim()) {
       errors.videoUrl = 'Video URL is required';
     }
     
-    if (moduleData.contentType === 'text' && !contentData.textContent.trim()) {
-      errors.textContent = 'Content is required';
+    if (moduleData.contentType === 'text' && !moduleData.content.text.trim()) {
+      errors.text = 'Content is required';
     }
     
     if (moduleData.contentType === 'quizz') {
       const quizErrors = [];
       
-      contentData.quizQuestions.forEach((question, index) => {
+      moduleData.content.quiz.questions.forEach((question, index) => {
         const questionErrors = {};
         
         if (!question.question.trim()) {
@@ -467,11 +531,11 @@ const CourseDetail = () => {
         question.options.forEach((option, optIndex) => {
           const optionError = {};
           
-          if (!option.text.trim()) {
+          if (!option.trim()) {
             optionError.text = 'Option text is required';
           }
           
-          if (option.isCorrect) {
+          if (option === question.correctOption) {
             hasCorrectOption = true;
           }
           
@@ -510,45 +574,16 @@ const CourseDetail = () => {
     setAddingModuleLoading(true);
     
     try {
-      // Prepare module data based on content type
-      const moduleDataToSend = {
-        title: moduleData.title,
-        description: moduleData.description,
-        contentType: moduleData.contentType
-      };
-      
-      // Add content specific data based on type
-      switch (moduleData.contentType) {
-        case 'video':
-          moduleDataToSend.videoUrl = contentData.videoUrl;
-          break;
-        case 'text':
-          moduleDataToSend.textContent = contentData.textContent;
-          break;
-        case 'quizz':
-          moduleDataToSend.quizQuestions = contentData.quizQuestions;
-          moduleDataToSend.passingScore = 70; // Default passing score
-          break;
-        default:
-          break;
-      }
-      
-      // Make the actual API call to create a module
       const response = await moduleService.createModule(
         courseId, 
         currentSectionId, 
-        moduleDataToSend
+        moduleData
       );
       
-      if (response.success) {
-        // Refresh course data to get the updated modules
-        await fetchCourseDetails();
-        
-        handleSuccess('Module added successfully');
-        handleCloseModuleDialog();
-      } else {
-        handleError(response.message || 'Failed to add module');
-      }
+      await fetchCourseDetails();
+      
+      handleSuccess('Module added successfully');
+      handleCloseModuleDialog();
     } catch (err) {
       console.error('Error adding module:', err);
       handleError(err.formattedMessage || 'Failed to add module. Please try again.');
@@ -591,26 +626,15 @@ const CourseDetail = () => {
     setModuleData({
       title: module.title,
       description: module.description,
-      contentType: module.contentType
+      contentType: module.contentType,
+      content: {
+        text: module.textContent?.content || '',
+        videoUrl: module.videoContent?.videoUrl || '',
+        quiz: {
+          questions: module.quizContent?.questions || []
+        }
+      }
     });
-    
-    // Set content data based on module type
-    if (module.contentType === 'video' && module.videoContent) {
-      setContentData({
-        ...contentData,
-        videoUrl: module.videoContent.videoUrl
-      });
-    } else if (module.contentType === 'text' && module.textContent) {
-      setContentData({
-        ...contentData,
-        textContent: module.textContent.content
-      });
-    } else if (module.contentType === 'quizz' && module.quizContent) {
-      setContentData({
-        ...contentData,
-        quizQuestions: module.quizContent.questions || []
-      });
-    }
     
     // Clear errors
     setModuleErrors({});
@@ -958,10 +982,10 @@ const CourseDetail = () => {
               fullWidth
               label="Video URL (YouTube or Vimeo)"
               name="videoUrl"
-              value={contentData.videoUrl}
+              value={moduleData.content.videoUrl}
               onChange={handleContentChange}
-              error={!!moduleErrors.videoUrl}
-              helperText={moduleErrors.videoUrl}
+              error={!!moduleErrors.content?.videoUrl}
+              helperText={moduleErrors.content?.videoUrl}
               placeholder="https://www.youtube.com/embed/..."
             />
             <FormHelperText>
@@ -976,10 +1000,10 @@ const CourseDetail = () => {
             <Typography variant="subtitle2" sx={{ mb: 1 }}>Content</Typography>
             <Box sx={{ minHeight: 300, mb: 2 }}>
               <RichTextEditor
-                value={contentData.textContent}
-                onChange={handleContentRichTextChange}
-                error={!!moduleErrors.textContent}
-                helperText={moduleErrors.textContent}
+                value={moduleData.content.text}
+                onChange={handleContentChange}
+                error={!!moduleErrors.content?.text}
+                helperText={moduleErrors.content?.text}
                 placeholder="Enter your content here..."
                 minHeight={300}
               />
@@ -989,70 +1013,48 @@ const CourseDetail = () => {
       
       case 'quizz':
         return (
-          <Box sx={{ mt: 2 }}>
-            {contentData.quizQuestions.map((question, qIndex) => (
-              <Paper key={qIndex} sx={{ p: 2, mb: 2, bgcolor: '#f5f5f5' }}>
-                <Typography variant="subtitle1" gutterBottom>
-                  Question {qIndex + 1}
-                </Typography>
-                
-                <RichTextEditor
+          <Box>
+            {moduleData.content.quiz.questions.map((question, qIndex) => (
+              <Box key={qIndex} sx={{ mb: 4, p: 2, border: '1px solid #ddd', borderRadius: 1 }}>
+                <TextField
+                  fullWidth
+                  label={`Question ${qIndex + 1}`}
                   value={question.question}
-                  onChange={(content) => handleQuestionRichTextChange(qIndex, content)}
-                  error={!!moduleErrors.quizQuestions?.[qIndex]?.question}
-                  helperText={moduleErrors.quizQuestions?.[qIndex]?.question}
-                  placeholder="Enter question here..."
-                  minHeight={120}
+                  onChange={(e) => handleQuestionChange(qIndex, e.target.value)}
+                  sx={{ mb: 2 }}
                 />
                 
-                {moduleErrors.quizQuestions?.[qIndex]?.options && (
-                  <Alert severity="error" sx={{ mb: 2 }}>
-                    {moduleErrors.quizQuestions[qIndex].options}
-                  </Alert>
-                )}
-                
                 {question.options.map((option, oIndex) => (
-                  <Box key={oIndex} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <Box sx={{ flexGrow: 1, mr: 2 }}>
-                      <RichTextEditor
-                        value={option.text}
-                        onChange={(content) => handleOptionRichTextChange(qIndex, oIndex, content)}
-                        error={!!moduleErrors.quizQuestions?.[qIndex]?.optionErrors?.[oIndex]?.text}
-                        helperText={moduleErrors.quizQuestions?.[qIndex]?.optionErrors?.[oIndex]?.text}
-                        placeholder={`Option ${oIndex + 1}`}
-                        minHeight={80}
-                      />
-                    </Box>
-                    <FormControl>
-                      <Select
-                        value={option.isCorrect}
-                        onChange={(e) => handleOptionChange(qIndex, oIndex, 'isCorrect', e.target.value)}
-                        size="small"
-                      >
-                        <MenuItem value={true}>Correct</MenuItem>
-                        <MenuItem value={false}>Incorrect</MenuItem>
-                      </Select>
-                    </FormControl>
+                  <Box key={oIndex} sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                    <TextField
+                      fullWidth
+                      label={`Option ${oIndex + 1}`}
+                      value={option}
+                      onChange={(e) => handleOptionChange(qIndex, oIndex, e.target.value)}
+                    />
+                    <Radio
+                      checked={question.correctOption === oIndex}
+                      onChange={(e) => handleCorrectOptionChange(qIndex, oIndex)}
+                    />
                   </Box>
                 ))}
                 
-                <Button 
-                  variant="outlined" 
-                  size="small" 
+                <Button
                   startIcon={<AddIcon />}
-                  onClick={() => addOption(qIndex)}
+                  onClick={() => handleAddOption(qIndex)}
                   sx={{ mt: 1 }}
                 >
                   Add Option
                 </Button>
-              </Paper>
+              </Box>
             ))}
             
-            <Button 
-              variant="outlined" 
+            <Button
               startIcon={<AddIcon />}
-              onClick={addQuestion}
-              sx={{ mt: 1 }}
+              onClick={handleAddQuizQuestion}
+              variant="outlined"
+              fullWidth
+              sx={{ mt: 2 }}
             >
               Add Question
             </Button>
@@ -1452,7 +1454,61 @@ const CourseDetail = () => {
         maxWidth="md"
         fullWidth
       >
-        {/* Existing dialog content */}
+        <DialogTitle>
+          Add New Section
+          <IconButton
+            aria-label="close"
+            onClick={handleCloseSectionDialog}
+            sx={{ position: 'absolute', right: 8, top: 8 }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          <Box sx={{ p: 2 }}>
+            <TextField
+              fullWidth
+              label="Section Title"
+              name="title"
+              value={sectionData.title}
+              onChange={handleSectionChange}
+              error={!!sectionErrors.title}
+              helperText={sectionErrors.title}
+              sx={{ mb: 2 }}
+            />
+            
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>Description</Typography>
+            <Box sx={{ minHeight: 200, mb: 2 }}>
+              <RichTextEditor
+                value={sectionData.description}
+                onChange={handleSectionRichTextChange}
+                error={!!sectionErrors.description}
+                helperText={sectionErrors.description}
+                placeholder="Enter section description..."
+                minHeight={200}
+              />
+            </Box>
+            
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <DatePicker
+                label="Deadline (Optional)"
+                value={sectionData.deadline}
+                onChange={handleSectionDateChange}
+                renderInput={(params) => <TextField {...params} fullWidth />}
+              />
+            </LocalizationProvider>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseSectionDialog}>Cancel</Button>
+          <Button 
+            onClick={handleAddSection}
+            variant="contained"
+            disabled={addingSectionLoading}
+          >
+            {addingSectionLoading ? <CircularProgress size={24} /> : 'Add Section'}
+          </Button>
+        </DialogActions>
       </Dialog>
       
       {/* Module Dialog */}
@@ -1462,7 +1518,69 @@ const CourseDetail = () => {
         maxWidth="md"
         fullWidth
       >
-        {/* Existing dialog content */}
+        <DialogTitle>
+          Add New Module
+          <IconButton
+            aria-label="close"
+            onClick={handleCloseModuleDialog}
+            sx={{ position: 'absolute', right: 8, top: 8 }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          <Box sx={{ p: 2 }}>
+            <TextField
+              fullWidth
+              label="Module Title"
+              name="title"
+              value={moduleData.title}
+              onChange={handleModuleChange}
+              error={!!moduleErrors.title}
+              helperText={moduleErrors.title}
+              sx={{ mb: 2 }}
+            />
+            
+            <TextField
+              fullWidth
+              label="Module Description"
+              name="description"
+              value={moduleData.description}
+              onChange={handleModuleChange}
+              error={!!moduleErrors.description}
+              helperText={moduleErrors.description}
+              multiline
+              rows={3}
+              sx={{ mb: 2 }}
+            />
+            
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Content Type</InputLabel>
+              <Select
+                name="contentType"
+                value={moduleData.contentType}
+                onChange={handleModuleChange}
+              >
+                <MenuItem value="text">Text</MenuItem>
+                <MenuItem value="video">Video</MenuItem>
+                <MenuItem value="quizz">Quiz</MenuItem>
+              </Select>
+            </FormControl>
+            
+            {/* Render content form based on selected type */}
+            {renderContentForm()}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseModuleDialog}>Cancel</Button>
+          <Button 
+            onClick={handleAddModule}
+            variant="contained"
+            disabled={addingModuleLoading}
+          >
+            {addingModuleLoading ? <CircularProgress size={24} /> : 'Add Module'}
+          </Button>
+        </DialogActions>
       </Dialog>
     </Container>
   );

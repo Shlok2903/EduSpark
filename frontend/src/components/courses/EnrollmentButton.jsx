@@ -93,12 +93,12 @@ const EnrollmentButton = ({ courseId, onEnrollmentChange }) => {
           Enrolled on: {new Date(enrollmentStatus.enrollmentDate).toLocaleDateString('en-GB')}
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-          <Typography variant="body2" sx={{ mr: 1 }}>
+          {/* <Typography variant="body2" sx={{ mr: 1 }}>
             Progress: {enrollmentStatus.progress}%
           </Typography>
           <Box sx={{ width: '100%', mr: 1 }}>
             <LinearProgress variant="determinate" value={enrollmentStatus.progress} />
-          </Box>
+          </Box> */}
         </Box>
       </Box>
     );
