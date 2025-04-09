@@ -8,9 +8,11 @@ const path = require('path');
 // Import routes
 const authRouter = require('./Routes/AuthRouter');
 const courseRouter = require('./Routes/CourseRouter');
-const sectionRoutes = require('./Routes/sectionRoutes');
-const moduleRoutes = require('./Routes/moduleRoutes');
+const sectionRouter = require('./Routes/sectionRoutes');
+const moduleRouter = require('./Routes/moduleRoutes');
 const enrollmentRouter = require('./Routes/EnrollmentRouter');
+const practiceRouter = require('./Routes/practiceRoutes');
+const examRouter = require('./Routes/ExamRouter');
 
 require('dotenv').config();
 
@@ -24,7 +26,7 @@ mongoose.connect(process.env.MONGO_CONN)
 
 // Middleware
 app.use(cors());
-app.use(bodyParser.json());
+app.use(express.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // Set up multer for file uploads
@@ -43,9 +45,11 @@ app.use('/uploads', express.static('uploads'));
 // Use routes
 app.use('/auth', authRouter);
 app.use('/courses', courseRouter);
-app.use('/', sectionRoutes);
-app.use('/', moduleRoutes);
+app.use('/sections', sectionRouter);
+app.use('/modules', moduleRouter);
 app.use('/enrollments', enrollmentRouter);
+app.use('/practice', practiceRouter);
+app.use('/exams', examRouter);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

@@ -128,6 +128,10 @@ const CourseDetail = () => {
   const [moduleErrors, setModuleErrors] = useState({});
   const [addingModuleLoading, setAddingModuleLoading] = useState(false);
   
+  // Added for new layout
+  const [selectedModule, setSelectedModule] = useState(null);
+  const [isFullscreenQuiz, setIsFullscreenQuiz] = useState(false);
+  
   // Content state (for video, text, quiz)
   const [contentData, setContentData] = useState({
     videoUrl: '',
@@ -592,6 +596,31 @@ const CourseDetail = () => {
     }
   };
   
+  // Updated to handle module selection
+  const handleSelectModule = (module) => {
+    setSelectedModule(module);
+    
+    // Record view for enrolled users
+    if (!userState.isCreator && userState.isEnrolled) {
+      handleModuleView(module);
+    }
+    
+    // If it's a quiz and we want fullscreen mode
+    if (module.contentType === 'quizz') {
+      setQuizAnswers({});
+      setQuizSubmitted(false);
+      setQuizScore(0);
+      setIsFullscreenQuiz(true);
+    } else {
+      setIsFullscreenQuiz(false);
+    }
+  };
+  
+  // Close fullscreen quiz view
+  const handleCloseFullscreenQuiz = () => {
+    setIsFullscreenQuiz(false);
+  };
+  
   // Handle module view
   const handleViewModule = (module) => {
     setCurrentModule(module);
@@ -841,14 +870,55 @@ const CourseDetail = () => {
     return null;
   };
   
-  // Render module content based on type
-  const renderModuleContent = () => {
-    if (!currentModule) return null;
-    
-    switch (currentModule.contentType) {
+  // Render module content directly in the right panel
+  const renderSelectedContent = () => {
+    if (!selectedModule) {
+      // Show course description when no module is selected
+      return (
+        <Paper elevation={2} sx={{ p: 4, height: '100%', borderRadius: '12px', bgcolor: '#fff' }}>
+          <Typography variant="h4" gutterBottom>
+            Course Introduction
+          </Typography>
+          
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="body1" sx={{ whiteSpace: 'pre-line' }}>
+              {course?.description}
+            </Typography>
+          </Box>
+          
+          {userState.isEnrolled && !userState.isCreator && userState.enrollmentData && (
+            <Box sx={{ mt: 4 }}>
+              <Typography variant="h6" gutterBottom>
+                Your Progress: {userState.enrollmentData.progress || 0}%
+              </Typography>
+              <LinearProgress 
+                variant="determinate" 
+                value={userState.enrollmentData.progress || 0} 
+                sx={{ height: 10, borderRadius: 5 }}
+              />
+            </Box>
+          )}
+          
+          {!userState.isEnrolled && !userState.isCreator && (
+            <Box sx={{ mt: 4 }}>
+              <Alert severity="info" sx={{ mb: 2 }}>
+                Enroll in this course to start learning.
+              </Alert>
+              <EnrollmentButton 
+                courseId={courseId} 
+                onEnrollmentChange={handleEnrollmentChange} 
+              />
+            </Box>
+          )}
+        </Paper>
+      );
+    }
+
+    // Render based on content type
+    switch (selectedModule.contentType) {
       case 'video':
         // Extract video ID from the URL
-        const videoUrl = currentModule.videoContent.videoUrl;
+        const videoUrl = selectedModule.videoContent.videoUrl;
         const videoId = getYouTubeVideoId(videoUrl);
         
         if (!videoId) {
@@ -860,7 +930,15 @@ const CourseDetail = () => {
         }
 
         return (
-          <Box sx={{ width: '100%' }}>
+          <Paper elevation={2} sx={{ p: 4, height: '100%', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
+              {selectedModule.title}
+            </Typography>
+            
+            <Typography variant="body1" sx={{ mb: 3 }}>
+              {selectedModule.description}
+            </Typography>
+            
             <Box sx={{ 
               width: '100%', 
               aspectRatio: '16/9', 
@@ -868,9 +946,9 @@ const CourseDetail = () => {
               position: 'relative',
               bgcolor: '#000',
               borderRadius: '8px',
-              overflow: 'hidden'
+              overflow: 'hidden',
+              flexGrow: 1
             }}>
-              {/* YouTube Player with default controls */}
               <iframe
                 width="100%"
                 height="100%"
@@ -881,59 +959,233 @@ const CourseDetail = () => {
               />
             </Box>
             
-            {/* Video Progress Bar */}
             <Box sx={{ width: '100%', mt: 2 }}>
               <Typography variant="body2" gutterBottom>
-                Video Progress: {Math.round(videoProgress[currentModule._id] || 0)}%
+                Video Progress: {Math.round(videoProgress[selectedModule._id] || 0)}%
               </Typography>
               <LinearProgress 
                 variant="determinate" 
-                value={videoProgress[currentModule._id] || 0} 
+                value={videoProgress[selectedModule._id] || 0} 
                 sx={{ height: 8, borderRadius: 4 }}
               />
             </Box>
-          </Box>
+          </Paper>
         );
       
       case 'text':
         return (
-          <Box sx={{ p: 2 }}>
-            <div dangerouslySetInnerHTML={{ __html: currentModule.textContent.content }} />
+          <Paper elevation={2} sx={{ p: 4, height: '100%', borderRadius: '12px', overflow: 'auto' }}>
+            <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
+              {selectedModule.title}
+            </Typography>
+            
+            <Typography variant="body1" sx={{ mb: 3 }}>
+              {selectedModule.description}
+            </Typography>
+            
+            <Divider sx={{ mb: 3 }} />
+            
+            <Box sx={{ mt: 2 }}>
+              <div dangerouslySetInnerHTML={{ __html: selectedModule.textContent.content }} />
           </Box>
+          </Paper>
         );
       
       case 'quizz':
-        if (!currentModule.quizContent) return null;
-        
-        const passingScore = currentModule.quizContent.passingScore || 70;
+        // For quizzes, we'll use the fullscreen mode
+        // But have a placeholder here in case we need to render in the panel
+        return (
+          <Paper elevation={2} sx={{ p: 4, height: '100%', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <QuizIcon sx={{ fontSize: 60, color: '#FDC886', mb: 2 }} />
+            <Typography variant="h5" gutterBottom>
+              Quiz: {selectedModule.title}
+            </Typography>
+            <Typography variant="body1" sx={{ mb: 3, textAlign: 'center' }}>
+              This quiz will be displayed in fullscreen mode.
+            </Typography>
+            <Button 
+              variant="contained" 
+              onClick={() => setIsFullscreenQuiz(true)}
+              sx={{ 
+                mt: 2, 
+                bgcolor: '#FDC886', 
+                color: '#37474F', 
+                '&:hover': { bgcolor: '#f0aa75' } 
+              }}
+            >
+              Start Quiz
+            </Button>
+          </Paper>
+        );
+      
+      default:
+        return (
+          <Alert severity="info">
+            Select a module from the course content to view it.
+          </Alert>
+        );
+    }
+  };
+
+  // Fullscreen quiz component
+  const renderFullscreenQuiz = () => {
+    if (!selectedModule || selectedModule.contentType !== 'quizz' || !selectedModule.quizContent) {
+      return null;
+    }
+
+    const passingScore = selectedModule.quizContent.passingScore || 70;
         
         return (
-          <Box sx={{ p: 2 }}>
+      <Box sx={{ 
+        position: 'fixed', 
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        bottom: 0, 
+        bgcolor: 'white', 
+        zIndex: 1300,
+        p: 4,
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography variant="h4" fontWeight="bold">{selectedModule.title}</Typography>
+          <IconButton onClick={handleCloseFullscreenQuiz}>
+            <CloseIcon />
+          </IconButton>
+        </Box>
+        
+        <Divider sx={{ mb: 3 }} />
+        
+        <Box sx={{ flex: 1, overflowY: 'auto', px: 4 }}>
             {quizSubmitted ? (
-              <Box textAlign="center">
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              minHeight: '60vh' 
+            }}>
                 <Typography variant="h6" gutterBottom>
                   Quiz Result
                 </Typography>
-                <Typography variant="h3" sx={{ mb: 2 }}>
+              
+              <Box sx={{ position: 'relative', display: 'inline-flex', mb: 3 }}>
+                <CircularProgress
+                  variant="determinate"
+                  value={quizScore}
+                  size={120}
+                  thickness={5}
+                  sx={{ 
+                    color: quizScore >= passingScore ? '#4caf50' : '#f44336',
+                  }}
+                />
+                <Box
+                  sx={{
+                    top: 0,
+                    left: 0,
+                    bottom: 0,
+                    right: 0,
+                    position: 'absolute',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Typography variant="h4" sx={{ fontWeight: 600 }}>
                   {quizScore.toFixed(0)}%
                 </Typography>
+                </Box>
+              </Box>
                 
-                <Alert severity={quizScore >= passingScore ? "success" : "error"} sx={{ mb: 2 }}>
+              <Alert severity={quizScore >= passingScore ? "success" : "error"} sx={{ mb: 4, width: '100%', maxWidth: 500 }}>
                   {quizScore >= passingScore 
                     ? `Congratulations! You've passed this quiz.` 
                     : `You need ${passingScore}% to pass. Please try again.`}
                 </Alert>
                 
-                <Button variant="outlined" onClick={() => setQuizSubmitted(false)}>
+              <Typography variant="h6" gutterBottom>Review Your Answers</Typography>
+              
+              {selectedModule.quizContent.questions.map((question, qIndex) => (
+                <Paper 
+                  key={qIndex} 
+                  sx={{ 
+                    p: 3, 
+                    mb: 3, 
+                    width: '100%', 
+                    maxWidth: 700,
+                    borderLeft: '5px solid',
+                    borderColor: question.options[quizAnswers[qIndex]]?.isCorrect ? '#4caf50' : '#f44336' 
+                  }}
+                >
+                  <Typography variant="h6" gutterBottom dangerouslySetInnerHTML={{ __html: `${qIndex + 1}. ${question.question}` }} />
+                  
+                  {question.options.map((option, oIndex) => (
+                    <Box 
+                      key={oIndex}
+                      sx={{
+                        p: 2,
+                        mt: 1,
+                        borderRadius: 1,
+                        border: '1px solid',
+                        borderColor: oIndex === quizAnswers[qIndex] 
+                          ? (option.isCorrect ? '#4caf50' : '#f44336') 
+                          : (option.isCorrect ? '#e6f4ea' : '#e0e0e0'),
+                        bgcolor: oIndex === quizAnswers[qIndex] 
+                          ? (option.isCorrect ? 'rgba(76, 175, 80, 0.1)' : 'rgba(244, 67, 54, 0.1)') 
+                          : (option.isCorrect ? 'rgba(76, 175, 80, 0.05)' : 'transparent'),
+                      }}
+                    >
+                      <Typography dangerouslySetInnerHTML={{ __html: option.text }} />
+                      
+                      {option.isCorrect && (
+                        <Typography variant="caption" sx={{ color: '#4caf50', display: 'block', mt: 1 }}>
+                          Correct Answer
+                        </Typography>
+                      )}
+                      
+                      {oIndex === quizAnswers[qIndex] && !option.isCorrect && (
+                        <Typography variant="caption" sx={{ color: '#f44336', display: 'block', mt: 1 }}>
+                          Your Answer (Incorrect)
+                        </Typography>
+                      )}
+                    </Box>
+                  ))}
+                </Paper>
+              ))}
+              
+              <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
+                <Button 
+                  variant="outlined" 
+                  onClick={() => setQuizSubmitted(false)}
+                  sx={{ borderColor: '#FDC886', color: '#37474F' }}
+                >
                   Try Again
                 </Button>
+                <Button 
+                  variant="contained" 
+                  onClick={handleCloseFullscreenQuiz}
+                  sx={{ bgcolor: '#FDC886', color: '#37474F', '&:hover': { bgcolor: '#f0aa75' } }}
+                >
+                  Return to Course
+                </Button>
+              </Box>
               </Box>
             ) : (
               <>
-                {currentModule.quizContent.questions.map((question, qIndex) => (
-                  <Card key={qIndex} sx={{ mb: 3, bgcolor: '#f9f9f9' }}>
+              <Typography variant="body1" gutterBottom>
+                {selectedModule.description}
+              </Typography>
+              
+              <Box sx={{ my: 3 }}>
+                <Alert severity="info" sx={{ mb: 3 }}>
+                  Answer all questions and click submit to complete this quiz.
+                </Alert>
+                
+                {selectedModule.quizContent.questions.map((question, qIndex) => (
+                  <Card key={qIndex} sx={{ mb: 4, boxShadow: '0 2px 10px rgba(0,0,0,0.08)' }}>
                     <CardContent>
-                      <Typography variant="h6" gutterBottom dangerouslySetInnerHTML={{ __html: `Question ${qIndex + 1}: ${question.question}` }} />
+                      <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }} dangerouslySetInnerHTML={{ __html: `Question ${qIndex + 1}: ${question.question}` }} />
                       
                       <RadioGroup
                         value={quizAnswers[qIndex] !== undefined ? quizAnswers[qIndex] : null}
@@ -943,34 +1195,89 @@ const CourseDetail = () => {
                           <FormControlLabel
                             key={oIndex}
                             value={oIndex}
-                            control={<Radio />}
+                            control={<Radio sx={{ color: '#FDC886', '&.Mui-checked': { color: '#FDC886' } }} />}
                             label={<span dangerouslySetInnerHTML={{ __html: option.text }} />}
+                            sx={{
+                              p: 1.5,
+                              borderRadius: 2,
+                              border: '1px solid #e0e0e0',
+                              mb: 2,
+                              width: '100%',
+                              '&:hover': { bgcolor: 'rgba(253, 200, 134, 0.05)' },
+                              ...(quizAnswers[qIndex] === oIndex ? {
+                                bgcolor: 'rgba(253, 200, 134, 0.1)',
+                                borderColor: '#FDC886'
+                              } : {})
+                            }}
                           />
                         ))}
                       </RadioGroup>
                     </CardContent>
                   </Card>
                 ))}
+              </Box>
                 
-                <Box textAlign="center">
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
                   <Button
                     variant="contained"
-                    color="primary"
                     onClick={handleSubmitQuiz}
-                    disabled={Object.keys(quizAnswers).length !== currentModule.quizContent.questions.length}
-                  >
-                    Submit
+                  disabled={Object.keys(quizAnswers).length !== selectedModule.quizContent.questions.length}
+                  sx={{ 
+                    bgcolor: '#FDC886', 
+                    color: '#37474F', 
+                    px: 4, 
+                    py: 1.5, 
+                    fontSize: '1.1rem',
+                    '&:hover': { bgcolor: '#f0aa75' },
+                    '&.Mui-disabled': { bgcolor: '#f5f5f5', color: '#bdbdbd' }
+                  }}
+                >
+                  Submit Answers
                   </Button>
                 </Box>
               </>
             )}
           </Box>
+          </Box>
         );
-      
-      default:
-        return null;
-    }
   };
+  
+  // Update the useEffect for video completion
+  useEffect(() => {
+    if (currentModule?.contentType === 'video' && currentModule.videoContent?.videoUrl) {
+      // Track video completion when the video ends
+      const handleVideoEnd = () => {
+        handleVideoComplete(currentModule._id);
+      };
+
+      window.addEventListener('videoComplete', handleVideoEnd);
+      return () => {
+        window.removeEventListener('videoComplete', handleVideoEnd);
+      };
+    }
+  }, [currentModule]);
+
+  // Add scroll handler
+  useEffect(() => {
+    const contentBox = document.querySelector('.content-box');
+    let scrollTimeout;
+
+    const handleScroll = () => {
+      contentBox.classList.add('scrolling');
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        contentBox.classList.remove('scrolling');
+      }, 1000); // Hide scrollbar 1 second after scrolling stops
+    };
+
+    if (contentBox) {
+      contentBox.addEventListener('scroll', handleScroll);
+      return () => {
+        contentBox.removeEventListener('scroll', handleScroll);
+        clearTimeout(scrollTimeout);
+      };
+    }
+  }, []);
   
   // Render content form based on selected type for module creation
   const renderContentForm = () => {
@@ -1066,43 +1373,6 @@ const CourseDetail = () => {
     }
   };
   
-  // Update the useEffect for video completion
-  useEffect(() => {
-    if (currentModule?.contentType === 'video' && currentModule.videoContent?.videoUrl) {
-      // Track video completion when the video ends
-      const handleVideoEnd = () => {
-        handleVideoComplete(currentModule._id);
-      };
-
-      window.addEventListener('videoComplete', handleVideoEnd);
-      return () => {
-        window.removeEventListener('videoComplete', handleVideoEnd);
-      };
-    }
-  }, [currentModule]);
-
-  // Add scroll handler
-  useEffect(() => {
-    const contentBox = document.querySelector('.content-box');
-    let scrollTimeout;
-
-    const handleScroll = () => {
-      contentBox.classList.add('scrolling');
-      clearTimeout(scrollTimeout);
-      scrollTimeout = setTimeout(() => {
-        contentBox.classList.remove('scrolling');
-      }, 1000); // Hide scrollbar 1 second after scrolling stops
-    };
-
-    if (contentBox) {
-      contentBox.addEventListener('scroll', handleScroll);
-      return () => {
-        contentBox.removeEventListener('scroll', handleScroll);
-        clearTimeout(scrollTimeout);
-      };
-    }
-  }, []);
-  
   if (loading) {
     return (
       <div className="home-container">
@@ -1146,6 +1416,7 @@ const CourseDetail = () => {
     );
   }
   
+  // New layout with left sidebar and right content panel
   return (
     <Container maxWidth="xl" sx={{ height: '100vh', overflow: 'hidden' }}>
       <Box sx={{ display: 'flex', height: '100vh' }}>
@@ -1156,25 +1427,7 @@ const CourseDetail = () => {
           width: '100%',
           maxWidth: 'calc(100% - 240px)', // 240px is the width of the sidebar
           height: '100vh',
-          overflowY: 'auto', // Add vertical scroll
-          '&::-webkit-scrollbar': {
-            width: '8px',
-            display: 'none',
-          },
-          '&::-webkit-scrollbar-track': {
-            background: '#f1f1f1',
-            borderRadius: '4px',
-          },
-          '&::-webkit-scrollbar-thumb': {
-            background: '#888',
-            borderRadius: '4px',
-            '&:hover': {
-              background: '#555',
-            },
-          },
-          '&.scrolling::-webkit-scrollbar': {
-            display: 'block',
-          },
+          overflow: 'hidden', // Don't allow scrolling on the container
         }}>
           {/* Breadcrumbs navigation */}
           <Breadcrumbs sx={{ mb: 2 }}>
@@ -1184,18 +1437,8 @@ const CourseDetail = () => {
             <Typography color="text.primary">{course?.title || 'Course Details'}</Typography>
           </Breadcrumbs>
           
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : error ? (
-            <Alert severity="error" sx={{ my: 2 }}>
-              {error}
-            </Alert>
-          ) : (
-            <>
               {/* Course Header */}
-              <Paper elevation={2} sx={{ p: 3, mb: 3, borderRadius: '12px', minHeight: '200px' }}>
+          <Paper elevation={2} sx={{ p: 3, mb: 3, borderRadius: '12px' }}>
                 <Grid container spacing={2}>
                   <Grid item xs={12} md={8}>
                     <Typography variant="h4" sx={{ mb: 1, fontWeight: 500 }}>
@@ -1239,7 +1482,12 @@ const CourseDetail = () => {
                         color="primary" 
                         startIcon={<AddIcon />}
                         onClick={handleOpenSectionDialog}
-                        sx={{ borderRadius: '8px' }}
+                    sx={{ 
+                      borderRadius: '8px',
+                      backgroundColor: '#FDC886', 
+                      color: '#37474F',
+                      '&:hover': { backgroundColor: '#f0aa75' },
+                    }}
                       >
                         Add Section
                       </Button>
@@ -1253,24 +1501,34 @@ const CourseDetail = () => {
                     )}
                   </Grid>
                 </Grid>
-                
-                {/* Display progress for enrolled students */}
-                {userState.isEnrolled && !userState.isCreator && userState.enrollmentData && (
-                  <Box sx={{ mt: 2 }}>
-                    <Typography variant="body1" gutterBottom>
-                      Your Progress: {userState.enrollmentData.progress || 0}%
-                    </Typography>
-                    <LinearProgress 
-                      variant="determinate" 
-                      value={userState.enrollmentData.progress || 0} 
-                      sx={{ height: 10, borderRadius: 5 }}
-                    />
-                  </Box>
-                )}
               </Paper>
               
-              {/* Course Sections */}
-              <Typography variant="h5" sx={{ mb: 2 }}>
+          {/* Two column layout for course content */}
+          <Box sx={{ 
+            display: 'flex', 
+            height: 'calc(100vh - 200px)', // Subtract header height from viewport
+            overflow: 'hidden'
+          }}>
+            {/* Left column - Course sections and modules */}
+            <Box sx={{ 
+              width: '350px', 
+              mr: 3, 
+              overflowY: 'auto',
+              borderRadius: '12px',
+              bgcolor: '#f9f9f9',
+              p: 2,
+              '&::-webkit-scrollbar': {
+                width: '6px',
+              },
+              '&::-webkit-scrollbar-track': {
+                backgroundColor: 'transparent',
+              },
+              '&::-webkit-scrollbar-thumb': {
+                backgroundColor: '#bdbdbd',
+                borderRadius: '6px',
+              },
+            }}>
+              <Typography variant="h6" sx={{ mb: 2, px: 1 }}>
                 Course Content
               </Typography>
               
@@ -1280,10 +1538,29 @@ const CourseDetail = () => {
                 </Alert>
               ) : (
                 course.sections.map((section, index) => (
-                  <Accordion key={section._id} defaultExpanded={index === 0}>
-                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Accordion 
+                    key={section._id} 
+                    defaultExpanded={index === 0}
+                    sx={{ 
+                      mb: 2, 
+                      boxShadow: 'none', 
+                      '&:before': { display: 'none' },
+                      bgcolor: 'transparent',
+                    }}
+                  >
+                    <AccordionSummary 
+                      expandIcon={<ExpandMoreIcon />}
+                      sx={{ 
+                        bgcolor: '#f0f0f0', 
+                        borderRadius: '8px',
+                        '&.Mui-expanded': {
+                          borderBottomLeftRadius: 0,
+                          borderBottomRightRadius: 0,
+                        }
+                      }}
+                    >
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                        <Typography variant="h6">
+                        <Typography sx={{ fontWeight: 600, fontSize: '0.95rem' }}>
                           Section {index + 1}: {section.title}
                         </Typography>
                         {/* Only show add module button for creators/admins */}
@@ -1302,86 +1579,78 @@ const CourseDetail = () => {
                         )}
                       </Box>
                     </AccordionSummary>
-                    <AccordionDetails>
-                      <Typography 
-                        variant="body1" 
-                        sx={{ mb: 2 }}
-                        dangerouslySetInnerHTML={{ __html: section.description }}
-                      />
-                      
-                      {section.deadline && (
-                        <Typography variant="body2" sx={{ mb: 2 }}>
-                          Section Deadline: {new Date(section.deadline).toLocaleDateString('en-US', { 
-                            year: 'numeric', 
-                            month: 'long', 
-                            day: 'numeric' 
-                          })}
-                        </Typography>
-                      )}
-                      
+                    <AccordionDetails sx={{ 
+                      bgcolor: '#f9f9f9', 
+                      borderBottomLeftRadius: '8px',
+                      borderBottomRightRadius: '8px',
+                      borderTop: '1px solid rgba(0, 0, 0, 0.08)',
+                      p: 1
+                    }}>
                       {/* Modules in this section */}
                       {(!section.modules || section.modules.length === 0) ? (
                         <Alert severity="info" sx={{ my: 2 }}>
-                          No modules found in this section. {userState.isCreator ? "Add modules to provide content." : "The instructor hasn't added any content yet."}
+                          No modules in this section
                         </Alert>
                       ) : (
-                        <List>
+                        <List sx={{ p: 0 }}>
                           {section.modules.map((module, mIndex) => (
                             <ListItem 
                               key={module._id} 
+                              button
+                              onClick={() => handleSelectModule(module)}
                               sx={{ 
-                                bgcolor: '#f5f5f5', 
-                                mb: 1, 
                                 borderRadius: '8px',
-                                border: '1px solid #e0e0e0'
+                                mb: 1,
+                                transition: 'all 0.2s',
+                                bgcolor: selectedModule?._id === module._id ? 'rgba(253, 200, 134, 0.2)' : 'transparent',
+                                border: selectedModule?._id === module._id ? '1px solid #FDC886' : '1px solid transparent',
+                                '&:hover': {
+                                  bgcolor: 'rgba(253, 200, 134, 0.1)',
+                                }
                               }}
                             >
-                              <ListItemIcon>
-                                {module.contentType === 'video' && <VideoLibraryIcon />}
-                                {module.contentType === 'text' && <TextSnippetIcon />}
-                                {module.contentType === 'quizz' && <QuizIcon />}
+                              <ListItemIcon sx={{ minWidth: '36px' }}>
+                                {module.contentType === 'video' && <VideoLibraryIcon sx={{ color: '#FDC886' }} />}
+                                {module.contentType === 'text' && <TextSnippetIcon sx={{ color: '#FDC886' }} />}
+                                {module.contentType === 'quizz' && <QuizIcon sx={{ color: '#FDC886' }} />}
                               </ListItemIcon>
                               <ListItemText 
                                 primary={`${mIndex + 1}. ${module.title}`} 
-                                secondary={`${module.contentType.charAt(0).toUpperCase() + module.contentType.slice(1)} content`}
+                                primaryTypographyProps={{ 
+                                  fontSize: '0.9rem',
+                                  fontWeight: selectedModule?._id === module._id ? 600 : 400 
+                                }}
                               />
                               
                               {/* Show completion status for enrolled students */}
                               {renderModuleCompletionStatus(module)}
                               
-                              {/* Module actions */}
-                              <Box>
-                                <Button 
-                                  variant="outlined" 
-                                  size="small" 
-                                  startIcon={<PlayArrowIcon />} 
-                                  sx={{ mr: 1, borderRadius: '20px' }}
-                                  onClick={() => handleViewModule(module)}
-                                >
-                                  View
-                                </Button>
-                                
-                                {/* Only show edit/delete buttons for creators/admins */}
+                              {/* Module actions for admin/creator */}
                                 {(userState.isCreator || userState.isAdmin) && (
-                                  <>
+                                <Box sx={{ ml: 1, display: 'flex' }}>
                                     <IconButton 
                                       size="small" 
                                       color="primary"
-                                      sx={{ mr: 1 }}
-                                      onClick={() => handleEditModule(module)}
+                                    sx={{ mr: 0.5 }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditModule(module);
+                                    }}
                                     >
                                       <EditIcon fontSize="small" />
                                     </IconButton>
                                     <IconButton 
                                       size="small" 
                                       color="error"
-                                      onClick={() => handleDeleteModule(module._id)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteModule(module._id);
+                                    }}
                                     >
                                       <DeleteIcon fontSize="small" />
                                     </IconButton>
-                                  </>
-                                )}
                               </Box>
+                              )}
                             </ListItem>
                           ))}
                         </List>
@@ -1394,7 +1663,15 @@ const CourseDetail = () => {
                           size="small" 
                           startIcon={<AddIcon />}
                           onClick={() => handleOpenModuleDialog(section._id)}
-                          sx={{ mt: 1 }}
+                          sx={{ 
+                            mt: 1,
+                            borderColor: '#FDC886',
+                            color: '#37474F',
+                            '&:hover': {
+                              borderColor: '#f0aa75',
+                              bgcolor: 'rgba(253, 200, 134, 0.1)',
+                            }
+                          }}
                         >
                           Add Module
                         </Button>
@@ -1410,42 +1687,45 @@ const CourseDetail = () => {
                   variant="outlined" 
                   startIcon={<AddIcon />}
                   onClick={handleOpenSectionDialog}
-                  sx={{ mt: 2 }}
+                  sx={{ 
+                    mt: 2,
+                    borderColor: '#FDC886',
+                    color: '#37474F',
+                    '&:hover': {
+                      borderColor: '#f0aa75',
+                      bgcolor: 'rgba(253, 200, 134, 0.1)',
+                    }
+                  }}
+                  fullWidth
                 >
                   Add Section
                 </Button>
               )}
-            </>
-          )}
+            </Box>
+            
+            {/* Right column - Content display */}
+            <Box sx={{ 
+              flex: 1, 
+              overflowY: 'auto',
+              '&::-webkit-scrollbar': {
+                width: '6px',
+              },
+              '&::-webkit-scrollbar-track': {
+                backgroundColor: 'transparent',
+              },
+              '&::-webkit-scrollbar-thumb': {
+                backgroundColor: '#bdbdbd',
+                borderRadius: '6px',
+              },
+            }}>
+              {renderSelectedContent()}
+            </Box>
+          </Box>
         </Box>
       </Box>
       
-      {/* Module View Dialog */}
-      <Dialog
-        open={openModuleViewDialog}
-        onClose={handleCloseModuleViewDialog}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          {currentModule?.title}
-          <IconButton
-            aria-label="close"
-            onClick={handleCloseModuleViewDialog}
-            sx={{ position: 'absolute', right: 8, top: 8 }}
-          >
-            <CloseIcon />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent dividers>
-          {renderModuleContent()}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseModuleViewDialog}>
-            Close
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Fullscreen Quiz View */}
+      {isFullscreenQuiz && renderFullscreenQuiz()}
       
       {/* Section Dialog */}
       <Dialog

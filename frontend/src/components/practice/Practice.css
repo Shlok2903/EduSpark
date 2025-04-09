@@ -1,0 +1,75 @@
+/* Practice page styles */
+.practice-container {
+  padding: 24px 0;
+}
+
+.practice-card {
+  height: 100%;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+  overflow: hidden;
+}
+
+.practice-list {
+  max-height: 600px;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+.practice-item {
+  margin-bottom: 16px;
+  border-radius: 12px !important;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  border-left: 4px solid #F3B98D;
+}
+
+.practice-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Practice session styles */
+.question-container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.question-card {
+  border-radius: 16px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+  padding: 16px;
+}
+
+.results-container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* Custom scrollbar for practice list */
+.practice-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.practice-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.practice-list::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 10px;
+}
+
+.practice-list::-webkit-scrollbar-thumb:hover {
+  background: #ccc;
+}
+
+/* Make radio buttons in practice session more visible */
+.MuiRadio-root {
+  color: #F3B98D !important;
+}
+
+.MuiRadio-root.Mui-checked {
+  color: #F3B98D !important;
+} 

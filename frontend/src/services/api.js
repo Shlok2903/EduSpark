@@ -279,5 +279,223 @@ export const enrollmentService = {
   })
 };
 
+// Exam API services
+export const examService = {
+  getCourseExams: async (courseId) => {
+    try {
+      return await api.get(`/exams/course/${courseId}`);
+    } catch (error) {
+      console.error('Error fetching course exams:', error);
+      throw error;
+    }
+  },
+  
+  getExamById: async (examId) => {
+    try {
+      return await api.get(`/exams/${examId}`);
+    } catch (error) {
+      console.error('Error fetching exam details:', error);
+      throw error;
+    }
+  },
+  
+  createExam: async (examData) => {
+    try {
+      return await api.post('/exams/create', examData);
+    } catch (error) {
+      console.error('Error creating exam:', error);
+      throw error;
+    }
+  },
+  
+  updateExam: async (examId, examData) => {
+    try {
+      return await api.put(`/exams/${examId}`, examData);
+    } catch (error) {
+      console.error('Error updating exam:', error);
+      throw error;
+    }
+  },
+  
+  deleteExam: async (examId) => {
+    try {
+      return await api.delete(`/exams/${examId}`);
+    } catch (error) {
+      console.error('Error deleting exam:', error);
+      throw error;
+    }
+  },
+  
+  startExam: async (examId) => {
+    try {
+      return await api.post(`/exams/${examId}/start`);
+    } catch (error) {
+      console.error('Error starting exam:', error);
+      throw error;
+    }
+  },
+  
+  saveExamProgress: async (attemptId, data) => {
+    try {
+      return await api.post(`/exams/attempt/${attemptId}/save`, data);
+    } catch (error) {
+      console.error('Error saving exam progress:', error);
+      throw error;
+    }
+  },
+  
+  submitExam: async (attemptId) => {
+    try {
+      return await api.post(`/exams/attempt/${attemptId}/submit`);
+    } catch (error) {
+      console.error('Error submitting exam:', error);
+      throw error;
+    }
+  },
+  
+  uploadFile: async (attemptId, sectionId, questionId, file) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      return await api.post(
+        `/exams/attempt/${attemptId}/upload/${sectionId}/${questionId}`, 
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      throw error;
+    }
+  },
+  
+  uploadExamFile: async (attemptId, questionId, formData) => {
+    try {
+      return await api.post(
+        `/exams/attempt/${attemptId}/upload/section/${questionId}`, 
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      throw error;
+    }
+  },
+  
+  saveAnswer: async (attemptId, answerData) => {
+    try {
+      return await api.post(`/exams/attempt/${attemptId}/save-answer`, answerData);
+    } catch (error) {
+      console.error('Error saving answer:', error);
+      throw error;
+    }
+  },
+  
+  updateTimeRemaining: async (attemptId, timeRemaining) => {
+    try {
+      return await api.put(`/exams/attempt/${attemptId}/time`, { timeRemaining });
+    } catch (error) {
+      console.error('Error updating time remaining:', error);
+      throw error;
+    }
+  },
+  
+  getExamAttempts: async (examId) => {
+    try {
+      return await api.get(`/exams/${examId}/attempts`);
+    } catch (error) {
+      console.error('Error fetching exam attempts:', error);
+      throw error;
+    }
+  },
+  
+  getAttemptById: async (attemptId) => {
+    try {
+      return await api.get(`/exams/attempt/${attemptId}`);
+    } catch (error) {
+      console.error('Error fetching attempt details:', error);
+      throw error;
+    }
+  },
+  
+  getExamAttempt: async (attemptId) => {
+    try {
+      return await api.get(`/exams/attempt/${attemptId}`);
+    } catch (error) {
+      console.error('Error fetching attempt details:', error);
+      throw error;
+    }
+  },
+  
+  gradeAttempt: async (attemptId, grades) => {
+    try {
+      return await api.post(`/exams/attempt/${attemptId}/grade`, grades);
+    } catch (error) {
+      console.error('Error grading attempt:', error);
+      throw error;
+    }
+  },
+  
+  gradeExam: async (attemptId, data) => {
+    try {
+      return await api.post(`/exams/attempt/${attemptId}/grade`, data);
+    } catch (error) {
+      console.error('Error grading exam:', error);
+      throw error;
+    }
+  },
+  
+  getMyAttempts: async () => {
+    try {
+      return await api.get('/exams/my/attempts');
+    } catch (error) {
+      console.error('Error fetching my attempts:', error);
+      throw error;
+    }
+  },
+  
+  deleteAttempt: async (attemptId) => {
+    try {
+      return await api.delete(`/exams/attempt/${attemptId}`);
+    } catch (error) {
+      console.error('Error deleting attempt:', error);
+      throw error;
+    }
+  },
+  
+  downloadResults: async (examId) => {
+    try {
+      const response = await api.get(`/exams/${examId}/download`, {
+        responseType: 'blob'
+      });
+      return response;
+    } catch (error) {
+      console.error('Error downloading results:', error);
+      throw error;
+    }
+  },
+  
+  sendResultEmails: async (examId, data) => {
+    try {
+      return await api.post(`/exams/${examId}/send-emails`, data);
+    } catch (error) {
+      console.error('Error sending result emails:', error);
+      throw error;
+    }
+  }
+};
+
 // Export the base API for custom calls
-export default api; 
+export default api;
+
+export {
+  api
+}; 

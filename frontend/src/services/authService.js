@@ -18,8 +18,8 @@ const storeUserSession = (token, userData) => {
   if (userData) {
     localStorage.setItem('loggedInUser', userData.name || '');
     localStorage.setItem('userEmail', userData.email || '');
-    localStorage.setItem('isAdmin', userData.isAdmin || false);
-    localStorage.setItem('isTutor', userData.isTutor || false);
+    localStorage.setItem('isAdmin', String(userData.isAdmin === true));
+    localStorage.setItem('isTutor', String(userData.isTutor === true));
     
     // Ensure we're storing the user ID in a consistent format
     if (userData.id) {
@@ -30,6 +30,14 @@ const storeUserSession = (token, userData) => {
       console.log('Storing user _id:', userData._id);
       localStorage.setItem('userId', userData._id.toString());
     }
+    
+    // Debug log for roles
+    console.log('Stored user roles:', {
+      isAdmin: userData.isAdmin,
+      isTutor: userData.isTutor,
+      storedIsAdmin: localStorage.getItem('isAdmin'),
+      storedIsTutor: localStorage.getItem('isTutor')
+    });
   }
 };
 
@@ -53,14 +61,21 @@ const isAuthenticated = () => {
 const login = async (credentials) => {
   try {
     const response = await api.post('/auth/login', credentials);
+    console.log('Login response:', response);
     
     if (response.success) {
+      // Convert role flags to boolean if they're not already
+      const isAdmin = response.isAdmin === true || response.isAdmin === 'true';
+      const isTutor = response.isTutor === true || response.isTutor === 'true';
+      
+      console.log('Processed roles:', { isAdmin, isTutor });
+      
       // Store the JWT token and user data
       storeUserSession(response.jwtToken, {
         name: response.name,
         email: response.email,
-        isAdmin: response.isAdmin,
-        isTutor: response.isTutor,
+        isAdmin: isAdmin,
+        isTutor: isTutor,
         id: response.id || response._id
       });
       
@@ -70,8 +85,8 @@ const login = async (credentials) => {
         data: {
           name: response.name,
           email: response.email,
-          isAdmin: response.isAdmin,
-          isTutor: response.isTutor,
+          isAdmin: isAdmin,
+          isTutor: isTutor,
           id: response.id || response._id
         }
       };

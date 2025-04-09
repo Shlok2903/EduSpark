@@ -6,6 +6,9 @@ const VideoContent = require('./VideoContent');
 const TextContent = require('./TextContent');
 const QuizzContent = require('./QuizzContent');
 const Enrollment = require('./Enrollment');
+const Practice = require('./Practice');
+const Exam = require('./Exam');
+const ExamAttempt = require('./ExamAttempt');
 
 module.exports = {
   User,
@@ -15,5 +18,8 @@ module.exports = {
   VideoContent,
   TextContent,
   QuizzContent,
-  Enrollment
+  Enrollment,
+  Practice,
+  Exam,
+  ExamAttempt
 }; 

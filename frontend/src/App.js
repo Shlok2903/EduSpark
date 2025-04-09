@@ -9,6 +9,15 @@ import Home from './components/home/Home';
 import Courses from './components/courses/courseList/CourseList';
 import AddCourse from './components/courses/AddCourse';
 import CourseDetail from './components/courses/CourseDetail';
+import PracticePage from './components/practice/PracticePage';
+import PracticeSession from './components/practice/PracticeSession';
+import ExamsPage from './components/exams/ExamsPage';
+import CreateExam from './components/exams/CreateExam';
+import EditExam from './components/exams/EditExam';
+import ExamSession from './components/exams/ExamSession';
+import ExamView from './components/exams/ExamView';
+import ExamResults from './components/exams/ExamResults';
+import ExamAttemptView from './components/exams/ExamAttemptView';
 import './App.css';
 
 function App() {
@@ -39,6 +48,53 @@ function App() {
           </PrivateRoute>
         } />
         <Route path="/courses/:courseId" element={<CourseDetail />} />
+        <Route path="/practice" element={
+          <PrivateRoute>
+            <PracticePage />
+          </PrivateRoute>
+        } />
+        <Route path="/practice/:practiceId" element={
+          <PrivateRoute>
+            <PracticeSession />
+          </PrivateRoute>
+        } />
+        
+        {/* Exam Routes */}
+        <Route path="/exams" element={
+          <PrivateRoute>
+            <ExamsPage />
+          </PrivateRoute>
+        } />
+        <Route path="/exams/create/:courseId" element={
+          <PrivateRoute adminOrTutorOnly={true}>
+            <CreateExam />
+          </PrivateRoute>
+        } />
+        <Route path="/exams/edit/:examId" element={
+          <PrivateRoute adminOrTutorOnly={true}>
+            <EditExam />
+          </PrivateRoute>
+        } />
+        <Route path="/exams/view/:examId" element={
+          <PrivateRoute>
+            <ExamView />
+          </PrivateRoute>
+        } />
+        <Route path="/exams/session/:attemptId" element={
+          <PrivateRoute>
+            <ExamSession />
+          </PrivateRoute>
+        } />
+        <Route path="/exams/results/:examId" element={
+          <PrivateRoute adminOrTutorOnly={true}>
+            <ExamResults />
+          </PrivateRoute>
+        } />
+        <Route path="/exams/attempt/:attemptId" element={
+          <PrivateRoute>
+            <ExamAttemptView />
+          </PrivateRoute>
+        } />
       </Routes>
     </Provider>
   );

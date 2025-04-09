@@ -6,6 +6,8 @@ import AssessmentIcon from '@mui/icons-material/Assessment';
 import LogoutIcon from '@mui/icons-material/Logout';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import DashboardIcon from '@mui/icons-material/Dashboard';
+import QuizIcon from '@mui/icons-material/Quiz';
+import DescriptionIcon from '@mui/icons-material/Description';
 // Update the logo import path to match your assets directory
 import LogoSvg from '../../../assets/logo.svg';  // Adjust this path
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -49,6 +51,14 @@ function Sidebar() {
                 <div className={`nav-item ${activeTab === '/courses' ? 'active' : ''}`} onClick={() => handleNavigation('/courses')}>
                     <SchoolIcon sx={{ fontSize: 20 }} />
                     <span>Courses</span>
+                </div>
+                <div className={`nav-item ${activeTab === '/practice' ? 'active' : ''}`} onClick={() => handleNavigation('/practice')}>
+                    <QuizIcon sx={{ fontSize: 20 }} />
+                    <span>Practice</span>
+                </div>
+                <div className={`nav-item ${activeTab === '/exams' ? 'active' : ''}`} onClick={() => handleNavigation('/exams')}>
+                    <DescriptionIcon sx={{ fontSize: 20 }} />
+                    <span>Exams</span>
                 </div>
                 <div className={`nav-item ${activeTab === '/results' ? 'active' : ''}`} onClick={() => handleNavigation('/results')}>
                     <AssessmentIcon sx={{ fontSize: 20 }} />
