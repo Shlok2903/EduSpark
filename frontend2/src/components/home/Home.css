@@ -1,0 +1,194 @@
+/* Home page styles */
+.home-page {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header section */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.page-title {
+  font-family: 'Nortica-SemiBold', sans-serif !important;
+  color: #37474F !important;
+  font-size: 32px !important;
+}
+
+.search-container {
+  width: 320px;
+}
+
+.search-container .MuiOutlinedInput-root {
+  background-color: #FAF9F6;
+  border-radius: 12px;
+}
+
+.search-container .MuiOutlinedInput-notchedOutline {
+  border: none;
+}
+
+.search-container input {
+  font-family: 'Nortica-Regular', sans-serif;
+  font-size: 14px;
+  padding: 12px 16px;
+}
+
+.search-container input::placeholder {
+  color: #37474F;
+  opacity: 0.6;
+}
+
+.notification-button {
+  background-color: #37474F;
+  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+}
+
+.content-divider {
+  height: 1px;
+  background-color: #EAEAEA;
+  margin: 0 -32px 24px -32px;
+}
+
+/* Dashboard content */
+.home-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 40px;
+}
+
+.section-title {
+  font-family: 'Nortica-Medium', sans-serif !important;
+  color: #37474F !important;
+  margin-bottom: 24px !important;
+  font-size: 24px !important;
+}
+
+.mt-4 {
+  margin-top: 32px !important;
+}
+
+/* Dashboard cards */
+.dashboard-cards {
+  margin-bottom: 32px;
+}
+
+.dashboard-card {
+  border-radius: 16px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  height: 100%;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1) !important;
+}
+
+.card-icon-container {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.card-icon {
+  font-size: 24px !important;
+  color: white;
+}
+
+.card-icon-container.courses {
+  background-color: #FDC886;
+}
+
+.card-icon-container.assignments {
+  background-color: #7986CB;
+}
+
+.card-icon-container.achievements {
+  background-color: #4DB6AC;
+}
+
+.card-icon-container.users {
+  background-color: #FF7043;
+}
+
+.card-title {
+  font-family: 'Nortica-Medium', sans-serif !important;
+  color: #37474F !important;
+  margin-bottom: 8px !important;
+}
+
+.card-value {
+  color: #37474F;
+  opacity: 0.8;
+  margin-bottom: 16px !important;
+}
+
+.card-action-btn {
+  background-color: #FDC886 !important;
+  text-transform: none !important;
+  font-family: 'Nortica-Regular', sans-serif !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  color: #37474F !important;
+}
+
+.card-action-btn:hover {
+  background-color: #e9b678 !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+.placeholder-text {
+  text-align: center;
+  color: #9e9e9e;
+  font-style: italic;
+  padding: 40px 0;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .search-container {
+    width: 100%;
+  }
+  
+  .notification-button {
+    align-self: flex-end;
+  }
+  
+  .content-divider {
+    margin: 0 -16px 24px -16px;
+  }
+  
+  .page-title {
+    font-size: 24px !important;
+  }
+}
+
+@media screen and (min-width: 1440px) {
+  .search-container {
+    width: 360px;
+  }
+} 

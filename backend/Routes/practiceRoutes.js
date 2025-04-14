@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const practiceController = require('../Controllers/PracticeController');
-const { verifyToken } = require('../Middlewares/authMiddleware');
+const { verifyToken } = require('../Middlewares/AuthMiddleware');
 
 // Apply authentication middleware to all routes
 router.use(verifyToken);

@@ -55,52 +55,33 @@ const getCourseById = async (courseId, userId) => {
       throw new Error('Course not found');
     }
     
-    // Get user from database to check roles
-    console.log('User ID received:', userId);
-    console.log('Type of userId:', typeof userId);
-    
     // Use helper to get consistent userId
     const userIdStr = getUserIdString(userId);
-    console.log('Normalized userId:', userIdStr);
     
     // Get user from DB using the normalized ID
     const user = await User.findById(userIdStr);
-    console.log('User found:', user ? `ID: ${user._id}, Name: ${user.name}` : 'None');
     
     // Course creator check
     const courseCreatorId = getUserIdString(course.createdBy);
     
     const isCreator = courseCreatorId === userIdStr;
     const isAdmin = user?.isAdmin === true;
+    const isTutor = user?.isTutor === true;
     
-    // Log all details for debugging
-    console.log('Course access detailed check:', { 
-      isCreator, 
-      isAdmin, 
-      courseCreator: courseCreatorId,
-      userId: userIdStr,
-      originalUserId: userId
+    // Check enrollment status
+    let isEnrolled = false;
+    let enrollmentData = null;
+    
+    // Check if user is enrolled in this course
+    const enrollment = await Enrollment.findOne({
+      courseId: course._id,
+      userId: userIdStr
     });
     
-    let isEnrolled = false;
-    
-    // Skip enrollment check for creators and admins
-    if (!isCreator && !isAdmin) {
-      const enrollment = await Enrollment.findOne({
-        courseId: course._id,
-        userId: userIdStr,
-        isEnrolled: true
-      });
-      
-      isEnrolled = !!enrollment;
-      
-      // If user is not the creator/admin and not enrolled, throw error
-      if (!isEnrolled) {
-        throw new Error('You need to enroll in this course to view it');
-      }
-    } else {
-      // Automatically consider creators and admins as "enrolled" for UI purposes
+    // If enrollment record exists and is active
+    if (enrollment && enrollment.isEnrolled) {
       isEnrolled = true;
+      enrollmentData = enrollment;
     }
     
     // Get sections for this course
@@ -115,11 +96,15 @@ const getCourseById = async (courseId, userId) => {
       };
     }));
     
+    // Return course with all necessary data
     return {
       ...course.toObject(),
       sections: sectionsWithModules,
       isCreator,
-      isEnrolled
+      isEnrolled,
+      enrollment: enrollmentData,
+      isAdmin,
+      isTutor
     };
   } catch (error) {
     throw new Error(`Error fetching course: ${error.message}`);
@@ -302,6 +287,70 @@ const deleteCourse = async (courseId, userId, isAdmin) => {
   }
 };
 
+/**
+ * Get courses created by a specific user (tutor)
+ * @param {string} userId - The user/tutor ID
+ * @returns {Promise<Array>} Courses created by the user
+ */
+const getCoursesByCreator = async (userId) => {
+  try {
+    const userIdStr = getUserIdString(userId);
+    return await Course.find({ createdBy: userIdStr })
+      .populate('createdBy', 'name email')
+      .sort({ createdAt: -1 });
+  } catch (error) {
+    throw new Error(`Error fetching courses by creator: ${error.message}`);
+  }
+};
+
+/**
+ * Get all courses a user is enrolled in
+ * @param {string} userId - The user ID
+ * @returns {Promise<Array>} List of enrolled courses with enrollment data
+ */
+const getEnrolledCourses = async (userId) => {
+  try {
+    const userIdStr = getUserIdString(userId);
+    
+    // Find all enrollments for this user
+    const enrollments = await Enrollment.find({
+      userId: userIdStr,
+      isEnrolled: true
+    });
+    
+    // Get the course IDs from enrollments
+    const courseIds = enrollments.map(e => e.courseId);
+    
+    // If no enrollments, return empty array
+    if (courseIds.length === 0) {
+      return [];
+    }
+    
+    // Fetch courses by IDs
+    const courses = await Course.find({
+      _id: { $in: courseIds }
+    }).populate('createdBy', 'name email');
+    
+    // Merge enrollment data with course data
+    const coursesWithEnrollment = courses.map(course => {
+      const enrollment = enrollments.find(e => 
+        e.courseId.toString() === course._id.toString()
+      );
+      
+      return {
+        ...course.toObject(),
+        enrollmentDate: enrollment.createdAt,
+        progress: enrollment.progress,
+        isEnrolled: true
+      };
+    });
+    
+    return coursesWithEnrollment;
+  } catch (error) {
+    throw new Error(`Error fetching enrolled courses: ${error.message}`);
+  }
+};
+
 module.exports = {
   getAllCourses,
   getCourseById,
@@ -310,5 +359,7 @@ module.exports = {
   deleteCourse,
   checkEnrollment,
   isCreator,
-  getUserIdString
+  getUserIdString,
+  getCoursesByCreator,
+  getEnrolledCourses
 }; 

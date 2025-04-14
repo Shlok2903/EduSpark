@@ -161,12 +161,14 @@ exports.getEnrollmentStatus = async (req, res) => {
 
     if (!enrollment) {
       return res.status(200).json({ 
+        success: true,
         isEnrolled: false,
         message: 'User is not enrolled in this course'
       });
     }
 
     return res.status(200).json({
+      success: true,
       isEnrolled: enrollment.isEnrolled,
       enrollmentDate: enrollment.enrollmentDate,
       progress: enrollment.progress,
@@ -175,7 +177,11 @@ exports.getEnrollmentStatus = async (req, res) => {
     });
   } catch (error) {
     console.error('Error in getEnrollmentStatus:', error);
-    return res.status(500).json({ message: 'Server error', error: error.message });
+    return res.status(500).json({ 
+      success: false,
+      message: 'Server error', 
+      error: error.message
+    });
   }
 };
 
@@ -192,10 +198,17 @@ exports.getUserEnrollments = async (req, res) => {
       select: 'title description imageUrl createdBy'
     });
 
-    return res.status(200).json(enrollments);
+    return res.status(200).json({
+      success: true,
+      data: enrollments
+    });
   } catch (error) {
     console.error('Error in getUserEnrollments:', error);
-    return res.status(500).json({ message: 'Server error', error: error.message });
+    return res.status(500).json({ 
+      success: false,
+      message: 'Server error', 
+      error: error.message 
+    });
   }
 };
 
@@ -307,6 +320,14 @@ exports.trackModuleView = async (req, res) => {
     const { courseId, moduleId } = req.body;
     const userId = req.user.id;
 
+    // Validate required parameters
+    if (!courseId || !moduleId) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Both courseId and moduleId are required' 
+      });
+    }
+
     // Find the enrollment
     const enrollment = await Enrollment.findOne({
       courseId,
@@ -314,7 +335,10 @@ exports.trackModuleView = async (req, res) => {
     });
 
     if (!enrollment) {
-      return res.status(404).json({ message: 'Enrollment not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Enrollment not found' 
+      });
     }
 
     // Find the module to ensure it exists
@@ -324,7 +348,10 @@ exports.trackModuleView = async (req, res) => {
     });
 
     if (!module) {
-      return res.status(404).json({ message: 'Module not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Module not found' 
+      });
     }
 
     // Find and update the module progress in the enrollment
@@ -341,40 +368,35 @@ exports.trackModuleView = async (req, res) => {
         }
         
         if (moduleProgress.moduleId.toString() === moduleId) {
-          // Mark as completed if not already completed
-          if (!moduleProgress.isCompleted) {
-            moduleProgress.isCompleted = true;
-            moduleProgress.completedAt = new Date();
-            completedModules++;
-          }
+          // Mark as viewed but don't automatically complete
+          // This just records the view time
           moduleFound = true;
+          enrollment.lastAccessedAt = new Date();
         }
-      }
-      
-      // Check if all modules in the section are completed
-      const allModulesCompleted = section.moduleProgress.every(mp => mp.isCompleted);
-      if (allModulesCompleted && !section.isCompleted) {
-        section.isCompleted = true;
-        section.completedAt = new Date();
       }
     }
 
     if (!moduleFound) {
-      return res.status(404).json({ message: 'Module not found in the enrollment' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Module not found in the enrollment' 
+      });
     }
 
-    // Update overall progress percentage
-    enrollment.progress = Math.round((completedModules / totalModules) * 100);
-    enrollment.lastAccessedAt = new Date();
-
+    // Update the last access time
     await enrollment.save();
 
     return res.status(200).json({
-      message: 'Module progress updated',
+      success: true,
+      message: 'Module view recorded',
       progress: enrollment.progress
     });
   } catch (error) {
     console.error('Error in trackModuleView:', error);
-    return res.status(500).json({ message: 'Server error', error: error.message });
+    return res.status(500).json({ 
+      success: false,
+      message: 'Server error', 
+      error: error.message 
+    });
   }
 }; 

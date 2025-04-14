@@ -9,7 +9,9 @@ const {
   getAllCourses,
   getCourseById,
   updateCourse,
-  deleteCourse
+  deleteCourse,
+  getTutorCourses,
+  getEnrolledCourses
 } = require('../Controllers/CourseController');
 
 // Apply auth middleware to all routes
@@ -17,6 +19,12 @@ router.use(verifyToken);
 
 // Get all courses - accessible to all authenticated users
 router.get('/', getAllCourses);
+
+// Get courses created by a tutor - verifies if user is a tutor first
+router.get('/tutor/:tutorId', getTutorCourses);
+
+// Get all courses the user is enrolled in
+router.get('/enrolled', getEnrolledCourses);
 
 // Get a specific course by ID - checks for creator or enrollment status
 router.get('/:courseId', getCourseById);

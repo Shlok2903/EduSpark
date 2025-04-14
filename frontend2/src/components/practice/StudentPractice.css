@@ -1,0 +1,135 @@
+.student-practice-container {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.page-title {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.page-description {
+  margin-bottom: 32px;
+  color: #666;
+}
+
+.practice-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.practice-form-card {
+  max-width: 600px;
+  margin: 0 auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  gap: 16px;
+}
+
+.no-courses-alert {
+  margin-bottom: 24px;
+}
+
+.practice-questions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.practice-header {
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.question-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 16px;
+  overflow: hidden;
+  transition: box-shadow 0.3s ease;
+}
+
+.question-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.submit-button {
+  margin-top: 16px;
+  height: 48px;
+}
+
+.results-card {
+  margin-top: 24px;
+  border-radius: 8px;
+  background-color: #f5f9ff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.correct-answer {
+  background-color: rgba(76, 175, 80, 0.1);
+  border-radius: 4px;
+  padding: 4px !important;
+  margin-bottom: 8px !important;
+}
+
+.incorrect-answer {
+  background-color: rgba(244, 67, 54, 0.1);
+  border-radius: 4px;
+  padding: 4px !important;
+  margin-bottom: 8px !important;
+}
+
+.answer-feedback {
+  margin-top: 16px;
+}
+
+/* Tabs styling */
+.tabs-container {
+  margin-bottom: 24px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tab-content {
+  min-height: 300px;
+}
+
+/* Practice history styling */
+.practice-history {
+  padding: 16px;
+}
+
+.history-list {
+  margin-top: 16px;
+}
+
+.history-item {
+  border: 1px solid #eee;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  padding: 12px;
+  transition: box-shadow 0.2s ease;
+}
+
+.history-item:hover {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+.history-item.completed {
+  border-left: 4px solid #4caf50;
+}
+
+.history-item.incomplete {
+  border-left: 4px solid #ff9800;
+}

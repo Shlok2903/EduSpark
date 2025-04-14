@@ -1,4 +1,5 @@
 const courseService = require('../services/courseService');
+const User = require('../Models/User');
 
 // Create a new course with image upload to cloudinary
 const createCourse = async (req, res) => {
@@ -157,10 +158,84 @@ const deleteCourse = async (req, res) => {
   }
 };
 
+// Get courses created by a tutor
+const getTutorCourses = async (req, res) => {
+  try {
+    const { tutorId } = req.params;
+    const requestingUserId = req.user._id;
+    
+    // Check if the requesting user is the same as the tutor or is an admin
+    if (tutorId !== requestingUserId.toString() && !req.user.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to view these courses'
+      });
+    }
+    
+    // Verify if the user is a tutor
+    const user = await User.findById(tutorId);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    if (!user.isTutor) {
+      return res.status(403).json({
+        success: false,
+        message: 'User is not a tutor'
+      });
+    }
+    
+    // Get courses created by the tutor
+    const courses = await courseService.getCoursesByCreator(tutorId);
+    
+    res.status(200).json({
+      success: true,
+      isTutor: true,
+      data: courses
+    });
+  } catch (error) {
+    console.error('Error fetching tutor courses:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching tutor courses',
+      error: error.message
+    });
+  }
+};
+
+// Get courses the user is enrolled in
+const getEnrolledCourses = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    
+    // Get all courses the user is enrolled in
+    const courses = await courseService.getEnrolledCourses(userId);
+    
+    res.status(200).json({
+      success: true,
+      data: courses
+    });
+  } catch (error) {
+    console.error('Error fetching enrolled courses:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching enrolled courses',
+      error: error.message
+    });
+  }
+};
+
+// Export all controller functions
 module.exports = {
   createCourse,
   getAllCourses,
   getCourseById,
   updateCourse,
-  deleteCourse
+  deleteCourse,
+  getTutorCourses,
+  getEnrolledCourses
 }; 

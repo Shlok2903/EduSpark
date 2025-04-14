@@ -1,0 +1,23 @@
+.enrollment-button {
+  background-color: #37474F !important;
+  color: white !important;
+  border-radius: 8px !important;
+  text-transform: none !important;
+  font-family: 'Nortica-Medium', sans-serif !important;
+  box-shadow: none !important;
+  transition: all 0.3s ease !important;
+}
+
+.enrollment-button:hover {
+  background-color: #263238 !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+.enrollment-button.enrolled {
+  background-color: #FDC886 !important;
+  color: #37474F !important;
+}
+
+.enrollment-button.enrolled:hover {
+  background-color: #e9b678 !important;
+} 

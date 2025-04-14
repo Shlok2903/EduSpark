@@ -52,6 +52,37 @@ const createModule = async (req, res) => {
 };
 
 /**
+ * Create multiple modules in batch
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const createModulesBatch = async (req, res) => {
+  try {
+    const { modules, courseId, sectionId } = req.body;
+    
+    if (!modules || !Array.isArray(modules) || modules.length === 0) {
+      return handleError(res, 400, 'No modules provided or invalid format');
+    }
+    
+    if (!courseId || !sectionId) {
+      return handleError(res, 400, 'Course ID and Section ID are required');
+    }
+    
+    // Check if user has permission to create modules for this course/section
+    const isAllowed = await moduleService.checkAccess(courseId, sectionId, req.user._id);
+    if (!isAllowed) {
+      return handleError(res, 403, 'You do not have permission to create modules for this section');
+    }
+    
+    const createdModules = await moduleService.createModulesBatch(modules, courseId, sectionId);
+    
+    return handleResponse(res, 201, true, 'Modules created successfully', createdModules);
+  } catch (error) {
+    return handleError(res, 500, error.message);
+  }
+};
+
+/**
  * Update a module
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
@@ -107,6 +138,7 @@ module.exports = {
   getModulesBySectionId,
   getModuleById,
   createModule,
+  createModulesBatch,
   updateModule,
   deleteModule,
   updateModulesOrder

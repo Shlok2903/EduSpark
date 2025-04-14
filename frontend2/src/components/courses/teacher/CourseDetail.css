@@ -1,0 +1,174 @@
+.course-detail-container {
+  padding-top: 2rem;
+  padding-bottom: 4rem;
+}
+
+.breadcrumbs {
+  margin-bottom: 1.5rem;
+}
+
+.course-header {
+  margin-bottom: 2rem;
+}
+
+.back-button {
+  margin-bottom: 1rem;
+}
+
+.course-header-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.course-title {
+  font-weight: 600;
+}
+
+.course-info {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.course-category, .course-level {
+  font-weight: 500;
+}
+
+.course-students {
+  font-weight: 500;
+}
+
+.course-tabs-container {
+  margin-bottom: 2rem;
+  border-radius: 16px;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.course-tabs {
+  padding: 0 1rem;
+}
+
+.tab-panel {
+  margin-bottom: 2rem;
+}
+
+.course-sidebar {
+  height: 100%;
+  border-radius: 16px;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.course-image-container {
+  margin-bottom: 1.5rem;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.course-image {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.description-title {
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+
+.course-description {
+  margin-bottom: 1.5rem;
+  color: rgba(0, 0, 0, 0.7);
+}
+
+.preview-button {
+  margin-top: 1rem;
+}
+
+.course-content-paper {
+  padding: 1.5rem;
+  border-radius: 16px;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.content-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.content-title {
+  font-weight: 600;
+}
+
+.section-accordion {
+  margin-bottom: 1rem;
+  border-radius: 8px !important;
+  box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.05) !important;
+  overflow: hidden;
+}
+
+.section-header {
+  padding: 0 1.5rem;
+}
+
+.section-content {
+  padding: 1rem 1.5rem !important;
+  flex-direction: column;
+}
+
+.section-actions {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.module-list {
+  width: 100%;
+  padding: 0;
+  margin-bottom: 1rem;
+}
+
+.module-item {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+}
+
+.module-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.add-module-button {
+  margin-top: 1rem;
+}
+
+.no-modules, .no-content {
+  padding: 1rem;
+  text-align: center;
+  color: rgba(0, 0, 0, 0.5);
+}
+
+.students-container, .analytics-container {
+  padding: 3rem;
+  text-align: center;
+  border-radius: 16px;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* Quiz editor styles */
+.quiz-editor {
+  margin-top: 1rem;
+}
+
+.quiz-question-editor {
+  padding: 1.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  background-color: rgba(0, 0, 0, 0.02);
+} 

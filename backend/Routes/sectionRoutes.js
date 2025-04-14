@@ -13,6 +13,9 @@ router.get('/sections/:sectionId', verifyToken, isEnrolledOrCreator, SectionCont
 // Create a new section for a course - requires creator or admin
 router.post('/courses/:courseId/sections', verifyToken, isCreatorOrAdmin, SectionController.createSection);
 
+// Create multiple sections for a course in batch - requires creator or admin
+router.post('/sections/batch', verifyToken, SectionController.createSectionsBatch);
+
 // Update a section - requires creator or admin
 router.put('/sections/:sectionId', verifyToken, isCreatorOrAdmin, SectionController.updateSection);
 

@@ -52,6 +52,38 @@ const createSection = async (req, res) => {
 };
 
 /**
+ * Create multiple sections in batch
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const createSectionsBatch = async (req, res) => {
+  try {
+    const { sections, courseId } = req.body;
+    
+    if (!sections || !Array.isArray(sections) || sections.length === 0) {
+      return handleError(res, 400, 'No sections provided or invalid format');
+    }
+    
+    if (!courseId) {
+      return handleError(res, 400, 'Course ID is required');
+    }
+    
+    // Check if user has permission to create sections for this course
+    // This would typically be handled by a middleware, but we're adding extra validation here
+    const isAllowed = await sectionService.checkCourseAccess(courseId, req.user._id);
+    if (!isAllowed) {
+      return handleError(res, 403, 'You do not have permission to create sections for this course');
+    }
+    
+    const createdSections = await sectionService.createSectionsBatch(sections, courseId);
+    
+    return handleResponse(res, 201, true, 'Sections created successfully', createdSections);
+  } catch (error) {
+    return handleError(res, 500, error.message);
+  }
+};
+
+/**
  * Update a section
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
@@ -107,6 +139,7 @@ module.exports = {
   getSectionsByCourseId,
   getSectionById,
   createSection,
+  createSectionsBatch,
   updateSection,
   deleteSection,
   updateSectionsOrder

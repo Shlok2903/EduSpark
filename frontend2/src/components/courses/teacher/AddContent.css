@@ -1,0 +1,143 @@
+.add-content-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.header-actions {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.back-button {
+  color: #2c3e50 !important;
+}
+
+.page-title {
+  margin-bottom: 24px !important;
+  color: #2c3e50;
+  font-weight: 600 !important;
+}
+
+.course-creation-stepper {
+  margin-bottom: 32px !important;
+}
+
+.section-info-card {
+  background-color: #f8f9fa;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+  margin-bottom: 24px !important;
+}
+
+.course-title {
+  margin-bottom: 8px !important;
+  color: #2c3e50;
+  font-weight: 600 !important;
+}
+
+.section-title {
+  margin-bottom: 8px !important;
+  color: #2c3e50;
+  font-weight: 500 !important;
+}
+
+.section-description {
+  color: #7f8c8d;
+}
+
+.add-content-card {
+  background-color: white;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+}
+
+.header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.content-title {
+  color: #2c3e50;
+  font-weight: 500 !important;
+  margin: 0 !important;
+}
+
+.add-button {
+  background-color: #FDC886 !important;
+  color: #37474F !important;
+}
+
+.empty-state {
+  padding: 48px 0;
+  text-align: center;
+  color: #7f8c8d;
+  border: 1px dashed #e0e0e0;
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.modules-list {
+  margin-bottom: 24px !important;
+}
+
+.module-item {
+  padding: 16px !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.module-type-icon {
+  margin-right: 16px;
+  color: #7f8c8d;
+}
+
+.module-item .MuiListItemText-primary {
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.module-item .MuiListItemText-secondary {
+  color: #7f8c8d;
+}
+
+.actions-container {
+  margin-top: 16px !important;
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300px;
+}
+
+/* Quiz Builder Styles */
+.quiz-builder {
+  margin-top: 16px;
+}
+
+.question-card {
+  margin-bottom: 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px !important;
+}
+
+.question-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.option-row {
+  margin-bottom: 8px;
+}
+
+.add-question-button {
+  margin-top: 16px !important;
+  color: #2c3e50 !important;
+} 

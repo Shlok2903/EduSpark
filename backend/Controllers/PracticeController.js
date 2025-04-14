@@ -1,12 +1,6 @@
 const { Practice, Course, Enrollment } = require('../Models');
-const { Configuration, OpenAIApi } = require('openai');
+const axios = require('axios');
 const mongoose = require('mongoose');
-
-// Configure OpenAI
-const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-const openai = new OpenAIApi(configuration);
 
 // Generate practice questions using OpenAI
 const generatePracticeQuestions = async (req, res) => {
@@ -60,7 +54,7 @@ const generatePracticeQuestions = async (req, res) => {
       hard: "Evaluation, synthesis, and complex problem solving. Questions should challenge with advanced concepts, require critical thinking, and have nuanced answer choices that require careful analysis."
     };
 
-    // Generate questions using OpenAI
+    // Generate questions using OpenAI API directly
     const prompt = `Generate ${numberOfQuestions} multiple-choice questions about ${course.title}. 
     The questions should be of ${difficulty} difficulty where:
     
@@ -91,45 +85,63 @@ const generatePracticeQuestions = async (req, res) => {
       }
     ]`;
 
-    const completion = await openai.createChatCompletion({
-      model: "gpt-3.5-turbo",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
-      max_tokens: 2500,
-    });
-
-    let questionsData;
+    // Make a direct API call to OpenAI
     try {
-      const responseText = completion.data.choices[0].message.content.trim();
-      questionsData = JSON.parse(responseText);
-    } catch (error) {
-      console.error('Failed to parse AI-generated questions:', error);
-      return res.status(500).json({ message: 'Failed to parse AI-generated questions', error: error.message });
+      const openAIResponse = await axios.post(
+        'https://api.openai.com/v1/chat/completions',
+        {
+          model: "gpt-3.5-turbo",
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.7,
+          max_tokens: 2500,
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+          }
+        }
+      );
+
+      let questionsData;
+      try {
+        const responseText = openAIResponse.data.choices[0].message.content.trim();
+        questionsData = JSON.parse(responseText);
+      } catch (error) {
+        console.error('Failed to parse AI-generated questions:', error);
+        return res.status(500).json({ message: 'Failed to parse AI-generated questions', error: error.message });
+      }
+
+      // Create new practice session
+      const newPractice = new Practice({
+        userId,
+        courseId,
+        title: `${course.title} Practice - ${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}`,
+        difficulty,
+        numberOfQuestions,
+        questions: questionsData,
+      });
+
+      await newPractice.save();
+
+      // Return practice session without correct answers
+      const sanitizedPractice = {
+        ...newPractice.toObject(),
+        questions: newPractice.questions.map(q => ({
+          _id: q._id,
+          question: q.question,
+          options: q.options,
+        }))
+      };
+
+      return res.status(201).json(sanitizedPractice);
+    } catch (openAIError) {
+      console.error('OpenAI API error:', openAIError.response?.data || openAIError.message);
+      return res.status(500).json({ 
+        message: 'Error generating questions with AI', 
+        error: openAIError.response?.data?.error?.message || openAIError.message 
+      });
     }
-
-    // Create new practice session
-    const newPractice = new Practice({
-      userId,
-      courseId,
-      title: `${course.title} Practice - ${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}`,
-      difficulty,
-      numberOfQuestions,
-      questions: questionsData,
-    });
-
-    await newPractice.save();
-
-    // Return practice session without correct answers
-    const sanitizedPractice = {
-      ...newPractice.toObject(),
-      questions: newPractice.questions.map(q => ({
-        _id: q._id,
-        question: q.question,
-        options: q.options,
-      }))
-    };
-
-    return res.status(201).json(sanitizedPractice);
   } catch (error) {
     console.error('Error generating practice:', error);
     return res.status(500).json({ message: 'Server error', error: error.message });
@@ -199,6 +211,8 @@ const submitPracticeAnswers = async (req, res) => {
     const { answers } = req.body;
     const userId = req.user.id;
 
+    console.log('Submitting practice answers:', { practiceId, answers });
+
     // Find the practice
     const practice = await Practice.findOne({
       _id: practiceId,
@@ -215,8 +229,10 @@ const submitPracticeAnswers = async (req, res) => {
 
     // Update questions with user answers
     let correctCount = 0;
-    practice.questions = practice.questions.map(question => {
+    
+    practice.questions = practice.questions.map((question, index) => {
       const answer = answers.find(a => a.questionId === question._id.toString());
+      
       if (answer) {
         const isCorrect = question.correctAnswer === answer.answer;
         if (isCorrect) correctCount++;

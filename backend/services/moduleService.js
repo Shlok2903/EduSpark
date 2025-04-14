@@ -1,4 +1,6 @@
 const Module = require('../Models/Module');
+const Course = require('../Models/Course');
+const Section = require('../Models/Section');
 const mongoose = require('mongoose');
 const { sanitizeHtml } = require('../utils/sanitizer');
 
@@ -107,6 +109,125 @@ const createModule = async (courseId, sectionId, moduleData) => {
 };
 
 /**
+ * Create multiple modules in batch
+ * @param {Array} modulesData - Array of module data objects
+ * @param {string} courseId - Course ID
+ * @param {string} sectionId - Section ID
+ * @returns {Promise<Array>} Array of created modules
+ */
+const createModulesBatch = async (modulesData, courseId, sectionId) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
+  try {
+    // Get the current max order for this section
+    const maxOrderModule = await Module.findOne({ sectionId })
+      .sort({ order: -1 })
+      .limit(1);
+    
+    let nextOrder = maxOrderModule ? maxOrderModule.order + 1 : 0;
+    
+    const createdModules = [];
+    
+    // Create each module with correct order
+    for (const moduleData of modulesData) {
+      const { title, description, type, content } = moduleData;
+      
+      // Create module with the appropriate content based on type
+      const moduleObj = {
+        title,
+        description: sanitizeHtml(description || ''),
+        courseId,
+        sectionId,
+        contentType: type,
+        order: nextOrder++
+      };
+      
+      // Add content based on type and sanitize where appropriate
+      switch (type) {
+        case 'video':
+          moduleObj.videoContent = {
+            videoUrl: content?.url || ''
+          };
+          break;
+        
+        case 'text':
+          moduleObj.textContent = {
+            content: sanitizeHtml(content?.text || '')
+          };
+          break;
+        
+        case 'quiz':
+          moduleObj.contentType = 'quizz'; // Adjust type to match backend enum
+          moduleObj.quizContent = {
+            questions: content?.questions.map(q => ({
+              question: sanitizeHtml(q.question),
+              options: q.options.map((text, index) => ({
+                text: sanitizeHtml(text),
+                isCorrect: index === q.correctOption
+              }))
+            })) || [],
+            passingScore: 70 // Default passing score
+          };
+          break;
+        
+        default:
+          throw new Error(`Invalid content type: ${type}`);
+      }
+      
+      const module = new Module(moduleObj);
+      await module.save({ session });
+      createdModules.push(module);
+    }
+    
+    await session.commitTransaction();
+    return createdModules;
+  } catch (error) {
+    await session.abortTransaction();
+    throw new Error(`Error creating modules in batch: ${error.message}`);
+  } finally {
+    session.endSession();
+  }
+};
+
+/**
+ * Check if a user has access to create/modify modules for a course section
+ * @param {string} courseId - Course ID
+ * @param {string} sectionId - Section ID
+ * @param {string} userId - User ID
+ * @returns {Promise<boolean>} Whether the user has access
+ */
+const checkAccess = async (courseId, sectionId, userId) => {
+  try {
+    // Check if section exists and belongs to the course
+    const section = await Section.findById(sectionId);
+    if (!section) {
+      throw new Error('Section not found');
+    }
+    
+    if (section.courseId.toString() !== courseId) {
+      throw new Error('Section does not belong to the specified course');
+    }
+    
+    // Check if the user is the creator of the course
+    const course = await Course.findById(courseId);
+    if (!course) {
+      throw new Error('Course not found');
+    }
+    
+    const isCreator = course.createdBy.toString() === userId.toString();
+    
+    // In a real application, you might also check if the user is an admin
+    // const user = await User.findById(userId);
+    // const isAdmin = user.isAdmin;
+    
+    return isCreator; // || isAdmin
+  } catch (error) {
+    throw new Error(`Error checking access: ${error.message}`);
+  }
+};
+
+/**
  * Update a module
  * @param {string} moduleId - Module ID
  * @param {Object} moduleData - Updated module data
@@ -202,6 +323,8 @@ module.exports = {
   getModulesBySectionId,
   getModuleById,
   createModule,
+  createModulesBatch,
+  checkAccess,
   updateModule,
   deleteModule,
   updateModulesOrder

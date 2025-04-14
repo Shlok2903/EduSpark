@@ -1,0 +1,93 @@
+.add-sections-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.page-title {
+  margin-bottom: 24px !important;
+  color: #2c3e50;
+  font-weight: 600 !important;
+}
+
+.course-creation-stepper {
+  margin-bottom: 32px !important;
+}
+
+.course-info-card {
+  background-color: #f8f9fa;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+  margin-bottom: 24px !important;
+}
+
+.course-title {
+  margin-bottom: 8px !important;
+  color: #2c3e50;
+  font-weight: 600 !important;
+}
+
+.course-description {
+  color: #7f8c8d;
+}
+
+.add-sections-card {
+  background-color: white;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+}
+
+.header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.section-title {
+  color: #2c3e50;
+  font-weight: 500 !important;
+  margin: 0 !important;
+}
+
+.add-button {
+  background-color: #FDC886 !important;
+  color: #37474F !important;
+}
+
+.empty-state {
+  padding: 48px 0;
+  text-align: center;
+  color: #7f8c8d;
+  border: 1px dashed #e0e0e0;
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.sections-list {
+  margin-bottom: 24px !important;
+}
+
+.section-item {
+  padding: 16px !important;
+}
+
+.section-item .MuiListItemText-primary {
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.section-item .MuiListItemText-secondary {
+  color: #7f8c8d;
+}
+
+.actions-container {
+  margin-top: 16px !important;
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300px;
+} 

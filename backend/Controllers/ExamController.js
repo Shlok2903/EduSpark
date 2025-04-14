@@ -3,6 +3,19 @@ const mongoose = require('mongoose');
 const path = require('path');
 const fs = require('fs');
 
+// Helper function to safely convert to ObjectId
+const toObjectId = (id) => {
+  try {
+    if (id && mongoose.Types.ObjectId.isValid(id)) {
+      return new mongoose.Types.ObjectId(id);
+    }
+    return null;
+  } catch (error) {
+    console.error('Error converting to ObjectId:', error);
+    return null;
+  }
+};
+
 // Create a new exam
 exports.createExam = async (req, res) => {
   try {
@@ -51,8 +64,14 @@ exports.getCourseExams = async (req, res) => {
     const { courseId } = req.params;
     const userId = req.user.id;
 
+    // Convert courseId to a valid ObjectId
+    const courseObjectId = toObjectId(courseId);
+    if (!courseObjectId) {
+      return res.status(400).json({ message: 'Invalid course ID format' });
+    }
+
     // Check if course exists
-    const course = await Course.findById(courseId);
+    const course = await Course.findById(courseObjectId);
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
@@ -62,11 +81,11 @@ exports.getCourseExams = async (req, res) => {
     
     if (course.createdBy.toString() === userId || req.user.isAdmin || req.user.isTutor) {
       // Teachers/admins can see all exams including unpublished ones
-      exams = await Exam.find({ courseId }).populate('createdBy', 'name email');
+      exams = await Exam.find({ courseId: courseObjectId }).populate('createdBy', 'name email');
     } else {
       // Students can only see published exams
       exams = await Exam.find({ 
-        courseId, 
+        courseId: courseObjectId, 
         isPublished: true,
         endTime: { $gte: new Date() } // Only show active or future exams
       }).populate('createdBy', 'name email');
@@ -250,26 +269,44 @@ exports.startExam = async (req, res) => {
   try {
     const { examId } = req.params;
     const userId = req.user.id;
+    
+    console.log(`Starting exam attempt for exam: ${examId}, user: ${userId}`);
 
     // Find exam
     const exam = await Exam.findById(examId);
     if (!exam) {
+      console.log(`Exam not found: ${examId}`);
       return res.status(404).json({ message: 'Exam not found' });
     }
+    
+    console.log(`Found exam: ${exam.title}`);
 
     // Check if exam is published
     if (!exam.isPublished) {
-      return res.status(400).json({ message: 'This exam is not yet available' });
+      console.log(`Exam ${examId} is not published`);
+      return res.status(400).json({ message: 'This exam is not yet available', errorCode: 'NOT_PUBLISHED' });
     }
 
     // Check exam time constraints
     const now = new Date();
+    console.log(`Current time: ${now.toISOString()}, Exam start: ${exam.startTime}, Exam end: ${exam.endTime}`);
+    
     if (now < new Date(exam.startTime)) {
-      return res.status(400).json({ message: 'This exam has not started yet' });
+      console.log(`Exam ${examId} has not started yet`);
+      return res.status(400).json({ 
+        message: 'This exam has not started yet', 
+        errorCode: 'NOT_STARTED',
+        startTime: exam.startTime
+      });
     }
     
     if (now > new Date(exam.endTime)) {
-      return res.status(400).json({ message: 'This exam has already ended' });
+      console.log(`Exam ${examId} has already ended`);
+      return res.status(400).json({ 
+        message: 'This exam has already ended',
+        errorCode: 'ALREADY_ENDED', 
+        endTime: exam.endTime
+      });
     }
 
     // Check if student already has an attempt
@@ -279,6 +316,8 @@ exports.startExam = async (req, res) => {
     });
 
     if (existingAttempt) {
+      console.log(`Found existing attempt ${existingAttempt._id} with status ${existingAttempt.status}`);
+      
       // If there's an existing attempt in progress, return it
       if (existingAttempt.status === 'in-progress') {
         return res.status(200).json({
@@ -289,8 +328,10 @@ exports.startExam = async (req, res) => {
       
       // If the attempt is already submitted or timed out
       if (['submitted', 'timed-out', 'graded'].includes(existingAttempt.status)) {
+        console.log(`Attempt ${existingAttempt._id} already completed with status ${existingAttempt.status}`);
         return res.status(400).json({ 
           message: 'You have already completed this exam',
+          errorCode: 'ALREADY_COMPLETED',
           attemptId: existingAttempt._id
         });
       }
@@ -322,6 +363,7 @@ exports.startExam = async (req, res) => {
     });
 
     await newAttempt.save();
+    console.log(`Created new attempt ${newAttempt._id}`);
 
     return res.status(201).json({
       message: 'Exam attempt started successfully',
@@ -329,7 +371,11 @@ exports.startExam = async (req, res) => {
     });
   } catch (error) {
     console.error('Error in startExam:', error);
-    return res.status(500).json({ message: 'Server error', error: error.message });
+    return res.status(500).json({ 
+      message: 'Server error', 
+      error: error.message,
+      stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined
+    });
   }
 };
 
@@ -709,13 +755,23 @@ exports.getMyAttempts = async (req, res) => {
   try {
     const userId = req.user.id;
 
+    console.log('Fetching exam attempts for user:', userId);
+
     // Get all attempts for this user
     const attempts = await ExamAttempt.find({ userId })
-      .populate('examId', 'title description totalMarks')
-      .populate('courseId', 'title')
+      .populate({
+        path: 'examId',
+        select: 'title description totalMarks passingMarks',
+        populate: {
+          path: 'courseId',
+          select: 'title'
+        }
+      })
       .select('-sections')
       .sort({ submittedAt: -1 });
 
+    console.log(`Found ${attempts.length} attempts for user ${userId}`);
+    
     return res.status(200).json(attempts);
   } catch (error) {
     console.error('Error in getMyAttempts:', error);
@@ -768,6 +824,38 @@ exports.updateTimeRemaining = async (req, res) => {
     });
   } catch (error) {
     console.error('Error in updateTimeRemaining:', error);
+    return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Update exam publish status
+exports.updatePublishStatus = async (req, res) => {
+  try {
+    const { examId } = req.params;
+    const { isPublished } = req.body;
+    const userId = req.user.id;
+
+    // Find exam
+    const exam = await Exam.findById(examId);
+    if (!exam) {
+      return res.status(404).json({ message: 'Exam not found' });
+    }
+
+    // Check if user is authorized to update this exam
+    if (exam.createdBy.toString() !== userId && !req.user.isAdmin) {
+      return res.status(403).json({ message: 'You do not have permission to update this exam' });
+    }
+
+    // Update publish status
+    exam.isPublished = isPublished;
+    await exam.save();
+
+    return res.status(200).json({
+      message: `Exam ${isPublished ? 'published' : 'unpublished'} successfully`,
+      exam
+    });
+  } catch (error) {
+    console.error('Error in updatePublishStatus:', error);
     return res.status(500).json({ message: 'Server error', error: error.message });
   }
 }; 

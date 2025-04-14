@@ -1,0 +1,102 @@
+.manage-courses-container {
+  padding: 2rem 0;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.page-title {
+  font-weight: 600;
+  color: #333;
+}
+
+.add-course-button {
+  font-weight: 500;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.section-divider {
+  margin: 1.5rem 0;
+}
+
+.error-message {
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  border-radius: 8px;
+  background-color: rgba(244, 67, 54, 0.05);
+}
+
+.courses-grid-container {
+  margin-top: 1.5rem;
+}
+
+.course-card-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.course-card-wrapper:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.course-actions {
+  padding: 0.75rem;
+  background-color: #f9f9f9;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.action-buttons {
+  display: flex;
+  justify-content: space-between;
+}
+
+.edit-button, .assign-button, .delete-button {
+  padding: 6px 8px;
+  font-size: 0.75rem;
+}
+
+.edit-button:hover {
+  background-color: rgba(52, 152, 219, 0.1);
+}
+
+.assign-button:hover {
+  background-color: rgba(46, 204, 113, 0.1);
+}
+
+.delete-button:hover {
+  background-color: rgba(231, 76, 60, 0.1);
+}
+
+.no-courses-message {
+  padding: 3rem;
+  text-align: center;
+  background-color: #f9f9f9;
+  border-radius: 16px;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.no-courses-message h6 {
+  margin-bottom: 1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.no-courses-message p {
+  margin-bottom: 2rem;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.create-first-course-button {
+  margin-top: 1rem;
+} 

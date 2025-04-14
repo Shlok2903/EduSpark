@@ -13,6 +13,9 @@ router.get('/modules/:moduleId', verifyToken, isEnrolledOrCreator, ModuleControl
 // Create a new module for a section - requires creator or admin
 router.post('/courses/:courseId/sections/:sectionId/modules', verifyToken, isCreatorOrAdmin, ModuleController.createModule);
 
+// Create multiple modules for a section in batch - requires creator or admin
+router.post('/modules/batch', verifyToken, ModuleController.createModulesBatch);
+
 // Update a module - requires creator or admin
 router.put('/modules/:moduleId', verifyToken, isCreatorOrAdmin, ModuleController.updateModule);
 

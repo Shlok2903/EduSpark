@@ -1,0 +1,209 @@
+/* Login.css - Styles specific to the login component */
+
+/* Remove duplicate font declarations - they are now imported from fonts.css in index.css */
+
+:root, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  /* Remove the system font family that was overriding the custom fonts */
+}
+
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: #FAF9F6;
+  overflow: hidden;
+}
+
+.login-left-decoration {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+}
+
+.plant-dark, .plant-light {
+  position: absolute;
+  bottom: 0;
+}
+
+.login-right-illustration {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  height: 80vh;
+}
+
+.login-form-container {
+  max-width: 400px;
+  margin: 120px auto;
+  padding: 40px;
+  z-index: 1;
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.login-title {
+  margin-bottom: 16px !important;
+  font-family: 'Nortica-SemiBold', sans-serif !important;
+  font-weight: 600 !important;
+  color: #2c3e50 !important;
+}
+
+.login-subtitle {
+  color: #666;
+  font-size: 16px;
+}
+
+.login-form-field {
+  margin-bottom: 24px;
+}
+
+.login-form-label {
+  margin-bottom: 8px !important;
+  color: #2c3e50 !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+}
+
+/* Form options (forgot password) */
+.login-form-options {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 24px;
+}
+
+.login-forgot-password {
+  color: #3498db !important;
+  text-decoration: none !important;
+  font-size: 14px !important;
+}
+
+/* Submit button */
+.login-submit-button {
+  margin-top: 8px !important;
+  margin-bottom: 24px !important;
+  border-radius: 8px !important;
+  padding: 12px !important;
+  background-color: #FDC886 !important;
+  text-transform: none !important;
+  font-size: 16px !important;
+  box-shadow: none !important;
+  color: #37474F !important;
+}
+
+.login-submit-button:hover {
+  background-color: #e9b678 !important;
+}
+
+/* Sign up prompt */
+.login-signup-prompt {
+  text-align: center;
+  margin-top: 16px;
+}
+
+.login-signup-link {
+  color: #3498db !important;
+  text-decoration: none !important;
+  font-weight: 500 !important;
+  display: inline !important;
+}
+
+/* Footer */
+.login-footer {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #666;
+  font-size: 14px;
+}
+
+/* Update MUI components typography */
+.MuiTypography-root {
+  font-family: 'Nortica-Regular', sans-serif !important;
+}
+
+.MuiButton-root {
+  font-family: 'Nortica-Medium', sans-serif !important;
+  font-size: 16px !important;
+}
+
+.MuiInputBase-root {
+  font-family: 'Nortica-Regular', sans-serif !important;
+}
+
+/* Navbar styles */
+.login-navbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 40px;
+  z-index: 1000;
+}
+
+.login-navbar-logo {
+  display: flex;
+  align-items: center;
+}
+
+.login-navbar-brand {
+  font-weight: 600 !important;
+  color: #2c3e50;
+  font-size: 24px !important;
+  font-family: 'Nortica-SemiBold', sans-serif !important;
+}
+
+.login-navbar-links {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+}
+
+.login-navbar-link {
+  text-decoration: none !important;
+  color: #2c3e50 !important;
+  font-size: 16px !important;
+  font-family: 'Nortica-Regular', sans-serif !important;
+}
+
+.login-navbar-button {
+  background-color: #FDC886 !important;
+  border-radius: 8px !important;
+  padding: 8px 16px !important;
+  text-transform: none !important;
+  font-size: 16px !important;
+  box-shadow: none !important;
+  color: #37474F !important;
+}
+
+.login-navbar-button:hover {
+  background-color: #e9b678 !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .login-form-container {
+    margin: 80px 16px;
+    padding: 24px;
+  }
+  
+  .login-right-illustration {
+    display: none;
+  }
+  
+  .plant-dark, .plant-light {
+    height: 200px;
+  }
+} 

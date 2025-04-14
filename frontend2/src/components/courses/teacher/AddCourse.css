@@ -1,0 +1,78 @@
+.add-course-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.page-title {
+  margin-bottom: 24px !important;
+  color: #2c3e50;
+  font-weight: 600 !important;
+}
+
+.course-creation-stepper {
+  margin-bottom: 32px !important;
+}
+
+.add-course-card {
+  background-color: white;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+  overflow: hidden;
+}
+
+.section-title {
+  margin-bottom: 16px !important;
+  color: #2c3e50;
+  font-weight: 500 !important;
+}
+
+.image-upload-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
+  min-height: 200px;
+  border: 2px dashed #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.upload-button {
+  padding: 12px 20px !important;
+  height: 48px;
+}
+
+.image-preview-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.image-preview {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.change-image-btn {
+  margin-top: 8px !important;
+}
+
+.actions-container {
+  margin-top: 16px !important;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.next-steps-container {
+  padding: 16px;
+  text-align: center;
+}
+
+.next-button {
+  margin-top: 16px !important;
+  padding: 12px 24px !important;
+} 

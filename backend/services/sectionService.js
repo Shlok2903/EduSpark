@@ -1,5 +1,6 @@
 const Section = require('../Models/Section');
 const Module = require('../Models/Module');
+const Course = require('../Models/Course');
 const mongoose = require('mongoose');
 const { sanitizeHtml } = require('../utils/sanitizer');
 
@@ -75,6 +76,77 @@ const createSection = async (sectionData, courseId) => {
     return section;
   } catch (error) {
     throw new Error(`Error creating section: ${error.message}`);
+  }
+};
+
+/**
+ * Create multiple sections in batch
+ * @param {Array} sectionsData - Array of section data objects
+ * @param {string} courseId - Course ID
+ * @returns {Promise<Array>} Array of created sections
+ */
+const createSectionsBatch = async (sectionsData, courseId) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
+  try {
+    // Get the current max order for this course
+    const maxOrderSection = await Section.findOne({ courseId })
+      .sort({ order: -1 })
+      .limit(1);
+    
+    let nextOrder = maxOrderSection ? maxOrderSection.order + 1 : 0;
+    
+    // Prepare all sections with correct order and sanitized content
+    const sectionsToCreate = sectionsData.map(sectionData => {
+      const { title, description, deadline } = sectionData;
+      
+      return {
+        title,
+        description: sanitizeHtml(description || ''),
+        courseId,
+        deadline: deadline ? new Date(deadline) : null,
+        order: nextOrder++
+      };
+    });
+    
+    // Insert all sections at once
+    const createdSections = await Section.insertMany(sectionsToCreate, { session });
+    
+    await session.commitTransaction();
+    return createdSections;
+  } catch (error) {
+    await session.abortTransaction();
+    throw new Error(`Error creating sections in batch: ${error.message}`);
+  } finally {
+    session.endSession();
+  }
+};
+
+/**
+ * Check if a user has access to modify a course
+ * @param {string} courseId - Course ID
+ * @param {string} userId - User ID
+ * @returns {Promise<boolean>} Whether the user has access
+ */
+const checkCourseAccess = async (courseId, userId) => {
+  try {
+    const course = await Course.findById(courseId);
+    
+    if (!course) {
+      throw new Error('Course not found');
+    }
+    
+    // Check if the user is the creator of the course
+    const isCreator = course.createdBy.toString() === userId.toString();
+    
+    // In a real application, you might also check if the user is an admin
+    // const user = await User.findById(userId);
+    // const isAdmin = user.isAdmin;
+    
+    return isCreator; // || isAdmin
+  } catch (error) {
+    throw new Error(`Error checking course access: ${error.message}`);
   }
 };
 
@@ -167,6 +239,8 @@ module.exports = {
   getSectionsByCourseId,
   getSectionById,
   createSection,
+  createSectionsBatch,
+  checkCourseAccess,
   updateSection,
   deleteSection,
   updateSectionsOrder
