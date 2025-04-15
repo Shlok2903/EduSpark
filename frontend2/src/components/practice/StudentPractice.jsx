@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Box,
   Typography,
@@ -31,6 +31,15 @@ import {
   AppBar,
   Toolbar,
   IconButton,
+  CardActions,
+  LinearProgress,
+  FormHelperText,
+  InputAdornment,
+  Container,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
 import {
   School,
@@ -43,6 +52,9 @@ import {
   Check,
   Close,
   FullscreenExit,
+  Help,
+  Visibility,
+  QuestionAnswer,
 } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import practiceService from "../../services/practiceService";
@@ -55,7 +67,44 @@ const difficultyLevels = [
   { value: "hard", label: "Hard" },
 ];
 
-const StudentPractice = ({ fullScreenMode }) => {
+// Global styles for pulse animation and fullscreen practice
+const globalStyles = `
+  @keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+  }
+
+  .question-feedback {
+    transition: all 0.3s ease;
+  }
+  
+  .question-feedback.correct {
+    background-color: rgba(76, 175, 80, 0.1);
+    border-left: 4px solid #4caf50;
+  }
+  
+  .question-feedback.incorrect {
+    background-color: rgba(244, 67, 54, 0.1);
+    border-left: 4px solid #f44336;
+  }
+  
+  .question-card {
+    transition: all 0.3s ease;
+    margin-bottom: 16px;
+  }
+  
+  .question-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  }
+  
+  .practice-form-card:hover {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  }
+`;
+
+const StudentPractice = ({ fullScreenMode = false, practiceId = null }) => {
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -71,7 +120,7 @@ const StudentPractice = ({ fullScreenMode }) => {
   const [fullScreen, setFullScreen] = useState(fullScreenMode || false);
   const [timer, setTimer] = useState(null);
   const timerIntervalRef = useRef(null);
-  const { practiceId } = useParams();
+  const { practiceId: urlPracticeId } = useParams();
   const navigate = useNavigate();
 
   const [practiceParams, setPracticeParams] = useState({
@@ -79,6 +128,14 @@ const StudentPractice = ({ fullScreenMode }) => {
     difficulty: "medium",
     numberOfQuestions: 5,
   });
+
+  const [historyFilters, setHistoryFilters] = useState({
+    status: "all",
+    courseId: "all",
+  });
+
+  const [showSubmitDialog, setShowSubmitDialog] = useState(false);
+  const [allQuestionsAnswered, setAllQuestionsAnswered] = useState(true);
 
   // Format time as MM:SS
   const formatTime = (seconds) => {
@@ -108,22 +165,41 @@ const StudentPractice = ({ fullScreenMode }) => {
     fetchCourses();
   }, []);
 
-  // Fetch practice history
+  // Fetch practice history when tab changes to history or after completing a practice
   useEffect(() => {
     if (activeTab === 1) {
       fetchPracticeHistory();
     }
   }, [activeTab]);
+  
+  // Refresh history after submitting practice
+  useEffect(() => {
+    if (practiceComplete) {
+      // Refresh practice history when a practice is completed
+      fetchPracticeHistory();
+    }
+  }, [practiceComplete]);
 
   const fetchPracticeHistory = async () => {
     try {
       setLoadingHistory(true);
       const response = await practiceService.getPracticeHistory();
-      if (response) {
+      console.log('Practice history response:', response);
+      
+      // Check if response exists and has the expected format
+      if (response && Array.isArray(response)) {
         setPracticeHistory(response);
+      } else if (response && response.data && Array.isArray(response.data)) {
+        // Handle case where data might be nested in a data property
+        setPracticeHistory(response.data);
+      } else {
+        console.error('Unexpected practice history format:', response);
+        setPracticeHistory([]);
+        toast.error("Couldn't load practice history: unexpected data format");
       }
     } catch (error) {
       console.error("Failed to fetch practice history:", error);
+      setPracticeHistory([]);
       toast.error("Could not load your practice history");
     } finally {
       setLoadingHistory(false);
@@ -177,10 +253,10 @@ const StudentPractice = ({ fullScreenMode }) => {
 
   // If in fullScreenMode and practiceId is provided, load that practice automatically
   useEffect(() => {
-    if (fullScreenMode && practiceId) {
-      handleLoadPractice(practiceId);
+    if (fullScreenMode && urlPracticeId) {
+      handleLoadPractice(urlPracticeId);
     }
-  }, [fullScreenMode, practiceId]);
+  }, [fullScreenMode, urlPracticeId]);
 
   const handleLoadPractice = async (practiceId) => {
     if (!fullScreenMode) {
@@ -292,68 +368,70 @@ const StudentPractice = ({ fullScreenMode }) => {
     });
   };
 
-  const handleSubmitPractice = async (isAutoSubmit = false) => {
-    // Check if all questions are answered
-    const unansweredQuestions = Object.values(userAnswers).filter(
-      (ans) => ans === null
-    ).length;
-
-    if (!isAutoSubmit && unansweredQuestions > 0) {
-      toast.warning(
-        `You have ${unansweredQuestions} unanswered questions. Are you sure you want to submit?`
-      );
-      return;
-    }
+  // Submit practice answers
+  const handleSubmitPractice = async (autoSubmit = false) => {
+    if (!practice) return;
 
     try {
-      // Clear timer interval
+      // Check if we need to show the confirmation dialog
+      if (!autoSubmit && !showSubmitDialog) {
+        // Calculate if all questions are answered
+        const answeredCount = Object.values(userAnswers).filter(val => val !== null).length;
+        const allAnswered = answeredCount === practice.questions.length;
+        setAllQuestionsAnswered(allAnswered);
+        setShowSubmitDialog(true);
+        return;
+      }
+      
+      // Clear timer
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);
-        timerIntervalRef.current = null;
       }
-      
+
       setSubmitting(true);
       
-      // Create answers array from userAnswers
-      const answersArray = Object.entries(userAnswers).map(
-        ([questionIndex, optionIndex]) => ({
-          questionId: practice.questions[parseInt(questionIndex)]._id,
-          answer: optionIndex !== null 
-            ? practice.questions[parseInt(questionIndex)].options[optionIndex]
-            : null,
-        })
-      );
+      // Format answers for submission
+      const formattedAnswers = Object.entries(userAnswers).map(([questionIndex, optionIndex]) => {
+        const question = practice.questions[parseInt(questionIndex)];
+        return {
+          questionId: question._id,
+          answer: optionIndex !== null ? question.options[optionIndex] : null
+        };
+      }).filter(a => a.answer !== null);
 
-      // If auto-submit due to timer, show a toast notification
-      if (isAutoSubmit) {
-        toast.info("Time's up! Your answers have been automatically submitted.");
-      }
-
+      // Call API to submit answers
       const response = await practiceService.submitPracticeAttempt(
         practice._id,
-        answersArray
+        formattedAnswers
       );
 
-      if (response) {
-        setPracticeComplete(true);
-        // Calculate score as percentage
-        const score = Math.round(
-          (response.correctAnswers / response.questions.length) * 100
-        );
-        setScore(score);
-        
-        if (!isAutoSubmit) {
-          toast.success("Practice submitted successfully!");
-        }
-        
-        fetchPracticeHistory(); // Refresh the history
-      }
+      console.log("Practice submission response:", response);
+      
+      // Update UI with results
+      setPractice(response);
+      setPracticeComplete(true);
+      
+      // Calculate score
+      const score = Math.round(
+        (response.correctAnswers / response.questions.length) * 100
+      );
+      setScore(score);
+      
+      // Show success message
+      toast.success(
+        autoSubmit 
+          ? "Time's up! Your practice has been submitted automatically." 
+          : "Practice submitted successfully!"
+      );
+      
+      // Display toast with score
+      setTimeout(() => {
+        toast.info(`You scored ${score}% (${response.correctAnswers}/${response.questions.length} correct)`);
+      }, 1000);
+      
     } catch (error) {
       console.error("Failed to submit practice:", error);
-      toast.error(
-        error.response?.data?.message ||
-          "Could not submit your practice. Please try again."
-      );
+      toast.error("Failed to submit your practice answers. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -381,102 +459,267 @@ const StudentPractice = ({ fullScreenMode }) => {
     );
   };
 
+  // Filter practice history based on selected filters
+  const filteredPracticeHistory = useMemo(() => {
+    if (!practiceHistory || !Array.isArray(practiceHistory)) {
+      return [];
+    }
+
+    return practiceHistory.filter(item => {
+      // Filter by status
+      if (historyFilters.status !== 'all') {
+        if (historyFilters.status === 'completed' && !item.isCompleted) {
+          return false;
+        }
+        if (historyFilters.status === 'pending' && item.isCompleted) {
+          return false;
+        }
+      }
+
+      // Filter by course
+      if (historyFilters.courseId !== 'all') {
+        // Handle both string IDs and object IDs
+        const itemCourseId = typeof item.courseId === 'object' ? 
+          (item.courseId?._id || item.courseId?.id) : 
+          item.courseId;
+          
+        if (itemCourseId !== historyFilters.courseId) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [practiceHistory, historyFilters]);
+
   // Render practice history
   const renderPracticeHistory = () => (
     <Box className="practice-history">
-      <Typography variant="h6" gutterBottom>
-        Your Practice History
-      </Typography>
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h6">Your Practice History</Typography>
+        
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <FormControl variant="outlined" size="small" sx={{ minWidth: 120 }}>
+            <InputLabel>Status</InputLabel>
+            <Select
+              value={historyFilters.status}
+              onChange={(e) => setHistoryFilters({ ...historyFilters, status: e.target.value })}
+              label="Status"
+            >
+              <MenuItem value="all">All</MenuItem>
+              <MenuItem value="completed">Completed</MenuItem>
+              <MenuItem value="pending">In Progress</MenuItem>
+            </Select>
+          </FormControl>
+          
+          <FormControl variant="outlined" size="small" sx={{ minWidth: 150 }}>
+            <InputLabel>Course</InputLabel>
+            <Select
+              value={historyFilters.courseId}
+              onChange={(e) => setHistoryFilters({ ...historyFilters, courseId: e.target.value })}
+              label="Course"
+            >
+              <MenuItem value="all">All Courses</MenuItem>
+              {courses.map((course) => (
+                <MenuItem key={course.id || course._id} value={course.id || course._id}>
+                  {course.title}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+      </Box>
 
       {loadingHistory ? (
-        <Box className="loading-state">
-          <CircularProgress size={30} />
-          <Typography>Loading your practice history...</Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
+          <CircularProgress />
         </Box>
-      ) : practiceHistory.length === 0 ? (
-        <Alert severity="info">
-          You haven't completed any practice quizzes yet. Start practicing to
-          see your history!
-        </Alert>
-      ) : (
-        <List className="history-list">
-          {practiceHistory.map((item) => (
-            <ListItem
-              key={item._id}
-              className={`history-item ${
-                item.isCompleted ? "completed" : "incomplete"
-              }`}
-            >
-              <ListItemIcon>
-                {item.isCompleted ? (
-                  <Badge
-                    badgeContent={`${Math.round(
-                      (item.correctAnswers / item.numberOfQuestions) * 100
-                    )}%`}
-                    color={
-                      item.correctAnswers / item.numberOfQuestions >= 0.8
-                        ? "success"
-                        : item.correctAnswers / item.numberOfQuestions >= 0.6
-                        ? "warning"
-                        : "error"
-                    }
-                  >
-                    <Check color="primary" />
-                  </Badge>
-                ) : (
-                  <AccessTime color="action" />
-                )}
-              </ListItemIcon>
-              <ListItemText
-                primary={item.title}
-                secondary={
-                  <>
-                    <Typography
-                      component="span"
-                      variant="body2"
-                      color="textSecondary"
-                    >
+      ) : filteredPracticeHistory.length > 0 ? (
+        <Grid container spacing={2}>
+          {filteredPracticeHistory.map((item) => (
+            <Grid item xs={12} sm={6} md={4} key={item._id}>
+              <Card 
+                elevation={2}
+                sx={{ 
+                  height: '100%',
+                  position: 'relative',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: 6
+                  }
+                }}
+              >
+                <CardContent sx={{ pb: 0 }}>
+                  <Box sx={{ 
+                    position: 'absolute', 
+                    top: 0, 
+                    right: 0, 
+                    background: item.isCompleted ? 
+                      `linear-gradient(135deg, ${
+                        item.correctAnswers / item.numberOfQuestions >= 0.8
+                          ? '#4caf50'
+                          : item.correctAnswers / item.numberOfQuestions >= 0.6
+                          ? '#ff9800'
+                          : '#f44336'
+                      } 50%, transparent 50%)` : 
+                      'none',
+                    width: '40px',
+                    height: '40px'
+                  }} />
+                  
+                  <Typography variant="h6" sx={{ mb: 1, pr: 4 }}>
+                    {item.title}
+                  </Typography>
+                  
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <School fontSize="small" sx={{ mr: 1, color: 'primary.main' }} />
+                    <Typography variant="body2">
+                      {getCourseName(item.courseId)}
+                    </Typography>
+                  </Box>
+                  
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <Help fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                    <Typography variant="body2">
+                      {item.numberOfQuestions} questions • {item.difficulty} difficulty
+                    </Typography>
+                  </Box>
+                  
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <AccessTime fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                    <Typography variant="body2">
                       {item.isCompleted
                         ? `Completed: ${formatDate(item.completedAt)}`
                         : `Started: ${formatDate(item.createdAt)}`}
                     </Typography>
-                    <br />
-                    <Typography
-                      component="span"
-                      variant="body2"
-                      color="textSecondary"
-                    >
-                      {item.numberOfQuestions} questions • {item.difficulty}{" "}
-                      difficulty
-                    </Typography>
-                  </>
-                }
-              />
-              <Button
-                variant="outlined"
-                color="primary"
-                startIcon={<PlayArrow />}
-                onClick={() => navigate(`/practice/${item._id}`)}
-                disabled={loadingPractice}
-              >
-                {item.isCompleted ? "Review" : "Continue"}
-              </Button>
-            </ListItem>
+                  </Box>
+                  
+                  {item.isCompleted && (
+                    <Box sx={{ mt: 2, mb: 1 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                        <Typography variant="body2" fontWeight="medium">
+                          Score:
+                        </Typography>
+                        <Typography 
+                          variant="body2" 
+                          fontWeight="bold"
+                          color={
+                            item.correctAnswers / item.numberOfQuestions >= 0.8
+                              ? "success.main"
+                              : item.correctAnswers / item.numberOfQuestions >= 0.6
+                              ? "warning.main"
+                              : "error.main"
+                          }
+                        >
+                          {Math.round((item.correctAnswers / item.numberOfQuestions) * 100)}%
+                        </Typography>
+                      </Box>
+                      <LinearProgress 
+                        variant="determinate"
+                        value={(item.correctAnswers / item.numberOfQuestions) * 100}
+                        color={
+                          item.correctAnswers / item.numberOfQuestions >= 0.8
+                            ? "success"
+                            : item.correctAnswers / item.numberOfQuestions >= 0.6
+                            ? "warning"
+                            : "error"
+                        }
+                        sx={{ height: 8, borderRadius: 4 }}
+                      />
+                    </Box>
+                  )}
+                </CardContent>
+                
+                <CardActions sx={{ justifyContent: 'flex-end', pt: 0 }}>
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    size="small"
+                    startIcon={item.isCompleted ? <Visibility /> : <PlayArrow />}
+                    onClick={() => handleLoadPractice(item._id)}
+                    disabled={loadingPractice}
+                  >
+                    {item.isCompleted ? "Review" : "Continue"}
+                  </Button>
+                </CardActions>
+              </Card>
+            </Grid>
           ))}
-        </List>
+        </Grid>
+      ) : historyFilters.status !== 'all' || historyFilters.courseId !== 'all' ? (
+        <Paper elevation={1} sx={{ p: 3, textAlign: 'center' }}>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            No practice quizzes found with the selected filters.
+          </Alert>
+          <Button 
+            variant="outlined" 
+            color="primary"
+            onClick={() => setHistoryFilters({ status: 'all', courseId: 'all' })}
+            sx={{ mt: 2 }}
+          >
+            Clear Filters
+          </Button>
+        </Paper>
+      ) : practiceHistory.length > 0 ? (
+        <Paper elevation={1} sx={{ p: 3, textAlign: 'center' }}>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            No practice quizzes found with the selected filters.
+          </Alert>
+          <Button 
+            variant="outlined" 
+            color="primary"
+            onClick={() => setHistoryFilters({ status: 'all', courseId: 'all' })}
+            sx={{ mt: 2 }}
+          >
+            Clear Filters
+          </Button>
+        </Paper>
+      ) : (
+        <Paper elevation={1} sx={{ p: 3, textAlign: 'center' }}>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            You haven't completed any practice quizzes yet.
+          </Alert>
+          <Typography variant="body1" gutterBottom>
+            Start practicing now to see your history here!
+          </Typography>
+          <Button 
+            variant="contained" 
+            color="primary"
+            onClick={() => setActiveTab(0)}
+            sx={{ mt: 2 }}
+          >
+            Create a Practice Quiz
+          </Button>
+        </Paper>
       )}
     </Box>
   );
 
   // Render the practice form
   const renderPracticeForm = () => (
-    <Card className="practice-form-card">
+    <Card 
+      elevation={3}
+      sx={{
+        height: '100%',
+        transition: 'all 0.3s ease',
+        '&:hover': {
+          boxShadow: 6
+        }
+      }}
+    >
       <CardContent>
-        <Typography variant="h6" gutterBottom>
+        <Typography variant="h5" gutterBottom sx={{ mb: 3, fontWeight: 'medium' }}>
           Generate Practice Questions
         </Typography>
 
-        <FormControl fullWidth margin="normal">
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="body2" color="text.secondary" paragraph>
+            Select a course, difficulty level, and number of questions to generate a personalized practice quiz.
+          </Typography>
+        </Box>
+
+        <FormControl fullWidth margin="normal" variant="outlined">
           <InputLabel>Select Course</InputLabel>
           <Select
             name="courseId"
@@ -494,9 +737,10 @@ const StudentPractice = ({ fullScreenMode }) => {
               </MenuItem>
             ))}
           </Select>
+          <FormHelperText>Choose a course you're enrolled in</FormHelperText>
         </FormControl>
 
-        <FormControl fullWidth margin="normal">
+        <FormControl fullWidth margin="normal" variant="outlined">
           <InputLabel>Difficulty Level</InputLabel>
           <Select
             name="difficulty"
@@ -511,6 +755,7 @@ const StudentPractice = ({ fullScreenMode }) => {
               </MenuItem>
             ))}
           </Select>
+          <FormHelperText>Select a challenge level appropriate for your knowledge</FormHelperText>
         </FormControl>
 
         <TextField
@@ -519,9 +764,18 @@ const StudentPractice = ({ fullScreenMode }) => {
           type="number"
           fullWidth
           margin="normal"
+          variant="outlined"
           value={practiceParams.numberOfQuestions}
           onChange={handleParamChange}
-          InputProps={{ inputProps: { min: 1, max: 20 } }}
+          InputProps={{ 
+            inputProps: { min: 1, max: 20 },
+            startAdornment: (
+              <InputAdornment position="start">
+                <QuestionAnswer color="action" fontSize="small" />
+              </InputAdornment>
+            )
+          }}
+          helperText={`Time limit: approximately ${practiceParams.numberOfQuestions} minute${practiceParams.numberOfQuestions !== 1 ? 's' : ''}`}
           disabled={generating}
         />
 
@@ -531,10 +785,10 @@ const StudentPractice = ({ fullScreenMode }) => {
           fullWidth
           disabled={loading || generating || !practiceParams.courseId}
           onClick={handleGeneratePractice}
-          startIcon={<Add />}
-          sx={{ mt: 2 }}
+          startIcon={generating ? <CircularProgress size={20} color="inherit" /> : <Add />}
+          sx={{ mt: 3, mb: 1, py: 1 }}
         >
-          {generating ? <CircularProgress size={24} /> : "Generate Practice"}
+          {generating ? "Generating..." : "Generate Practice"}
         </Button>
       </CardContent>
     </Card>
@@ -702,121 +956,146 @@ const StudentPractice = ({ fullScreenMode }) => {
 
   // Main render with fullscreen support
   return (
-    <>
-      {fullScreen ? (
-        <Dialog
-          fullScreen
-          open={fullScreen}
-          onClose={handleExitFullScreen}
-        >
-          <AppBar position="static" color="default" elevation={0}>
-            <Toolbar>
-              <IconButton
-                edge="start"
-                color="inherit"
-                onClick={handleExitFullScreen}
-                aria-label="close"
-              >
-                <FullscreenExit />
-              </IconButton>
-              <Typography variant="h6" sx={{ flex: 1 }}>
-                Practice Quiz
-              </Typography>
-              {timer !== null && (
-                <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center',
-                  color: timer < 60 ? 'error.main' : timer < 180 ? 'warning.main' : 'primary.main',
-                  bgcolor: timer < 60 ? 'error.light' : timer < 180 ? 'warning.light' : 'primary.light',
-                  px: 3,
-                  py: 1.5,
-                  borderRadius: 2,
-                  mr: 2,
+    <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <style>{globalStyles}</style>
+      
+      {/* Header section with navigation and tabs */}
+      {fullScreenMode ? (
+        <AppBar position="static" color="default" elevation={0}>
+          <Toolbar>
+            <IconButton 
+              edge="start" 
+              color="inherit" 
+              onClick={handleExitFullScreen}
+              aria-label="exit fullscreen"
+            >
+              <FullscreenExit />
+            </IconButton>
+            <Typography variant="h6" sx={{ flexGrow: 1, ml: 2 }}>
+              Practice Mode
+            </Typography>
+            {timer !== null && (
+              <Chip 
+                icon={<Timer />} 
+                label={formatTime(timer)}
+                color={timer < 60 ? "error" : timer < 180 ? "warning" : "primary"}
+                variant={timer < 60 ? "filled" : "outlined"}
+                sx={{ 
+                  fontSize: '1rem', 
                   fontWeight: 'bold',
-                  border: timer < 60 ? '2px solid #f44336' : timer < 180 ? '2px solid #ff9800' : '1px solid #3f51b5',
-                  animation: timer < 60 ? 'pulse 1s infinite' : 'none'
-                }}>
-                  <Timer sx={{ mr: 1, fontSize: '1.5rem' }} />
-                  <Typography variant="h5" fontFamily="monospace" fontWeight="bold">
-                    {formatTime(timer)}
-                  </Typography>
-                </Box>
-              )}
-            </Toolbar>
-          </AppBar>
-          
-          <Box sx={{ p: 3 }}>
-            {loading || loadingPractice ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
-                <CircularProgress size={60} />
-              </Box>
-            ) : practice ? (
-              renderPracticeQuestions()
-            ) : (
-              <Typography>No practice found</Typography>
+                  height: 'auto', 
+                  padding: '8px',
+                  animation: timer < 60 ? 'pulse 1s infinite' : 'none',
+                  mr: 2
+                }}
+              />
             )}
-          </Box>
-        </Dialog>
+          </Toolbar>
+        </AppBar>
       ) : (
-        <Box className="student-practice-container">
-          <Typography variant="h4" className="page-title">
-            Practice Questions
-          </Typography>
-          <Typography variant="body1" className="page-description">
-            Generate AI-powered practice questions based on your enrolled courses to
-            test your knowledge.
-          </Typography>
-  
-          {practice ? (
-            // Show practice quiz
-            renderPracticeQuestions()
-          ) : (
-            // Show tabs when no active practice
-            <Box className="practice-content">
-              {loading ? (
-                <Box className="loading-state">
-                  <CircularProgress />
-                  <Typography>Loading your courses...</Typography>
-                </Box>
-              ) : courses.length === 0 ? (
-                <Alert severity="info" className="no-courses-alert">
-                  You are not enrolled in any courses. Please enroll in a course to
-                  practice.
-                </Alert>
-              ) : (
-                <>
-                  <Paper className="tabs-container">
-                    <Tabs
-                      value={activeTab}
-                      onChange={handleTabChange}
-                      variant="fullWidth"
-                      indicatorColor="primary"
-                      textColor="primary"
-                    >
-                      <Tab icon={<Add />} label="New Practice" />
-                      <Tab icon={<History />} label="Practice History" />
-                    </Tabs>
-                  </Paper>
-  
-                  <Box className="tab-content">
-                    {activeTab === 0
-                      ? renderPracticeForm()
-                      : renderPracticeHistory()}
-                  </Box>
-                </>
-              )}
-            </Box>
-          )}
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+          <Tabs
+            value={activeTab}
+            onChange={handleTabChange}
+            variant="fullWidth"
+            indicatorColor="primary"
+            textColor="primary"
+            aria-label="practice tabs"
+            sx={{ 
+              '& .MuiTab-root': {
+                fontWeight: 'medium',
+                px: 4,
+                py: 2
+              }
+            }}
+          >
+            <Tab 
+              icon={<School fontSize="small" />} 
+              iconPosition="start"
+              label="Generate Practice" 
+            />
+            <Tab 
+              icon={<History fontSize="small" />} 
+              iconPosition="start"
+              label="Practice History" 
+              sx={{ 
+                '& .MuiBadge-badge': {
+                  right: -16,
+                  top: -2,
+                }
+              }}
+            />
+          </Tabs>
         </Box>
       )}
-      <style jsx="true">{`
-        @keyframes pulse {
-          0% { opacity: 1; }
-          50% { opacity: 0.5; }
-          100% { opacity: 1; }
-        }
-      `}</style>
-    </>
+
+      {/* Loading state for initial data */}
+      {loading ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', p: 3 }}>
+          <CircularProgress size={40} />
+          <Typography variant="h6" sx={{ mt: 2 }}>
+            Loading...
+          </Typography>
+        </Box>
+      ) : fullScreen ? (
+        /* Full-screen practice quiz */
+        <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+          {renderPracticeQuestions()}
+        </Box>
+      ) : (
+        /* Practice form and history tabs */
+        <Box sx={{ 
+          flexGrow: 1, 
+          overflow: 'auto', 
+          p: { xs: 1, sm: 2, md: 3 },
+          backgroundColor: (theme) => theme.palette.mode === 'dark' ? 'background.default' : 'grey.50'
+        }}>
+          <Container maxWidth="lg">
+            {activeTab === 0 ? renderPracticeForm() : renderPracticeHistory()}
+          </Container>
+        </Box>
+      )}
+
+      {/* Submit confirmation dialog */}
+      <Dialog
+        open={showSubmitDialog}
+        onClose={() => setShowSubmitDialog(false)}
+        aria-labelledby="submit-dialog-title"
+      >
+        <DialogTitle id="submit-dialog-title">
+          Submit Practice Quiz?
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to submit your answers? This action cannot be undone.
+            {!allQuestionsAnswered && (
+              <Typography color="error" sx={{ mt: 1 }}>
+                Warning: You have {practice?.questions?.length - Object.values(userAnswers).filter(Boolean).length} unanswered questions.
+              </Typography>
+            )}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => setShowSubmitDialog(false)} 
+            color="primary"
+          >
+            Continue Quiz
+          </Button>
+          <Button 
+            onClick={() => {
+              setShowSubmitDialog(false);
+              handleSubmitPractice();
+            }} 
+            color="primary" 
+            variant="contained"
+            autoFocus
+          >
+            Submit Quiz
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 };
 

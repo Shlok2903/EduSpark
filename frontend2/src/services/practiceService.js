@@ -30,7 +30,10 @@ const practiceService = {
   
   // Get practice attempts history
   getPracticeHistory: () => 
-    api.get('/practice')
+    api.get('/practice').then(response => {
+      // Make sure we're returning the actual data
+      return response.data || [];
+    })
 };
 
 export default practiceService; 
