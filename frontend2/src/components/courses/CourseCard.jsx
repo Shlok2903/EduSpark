@@ -1,16 +1,16 @@
 import React from 'react';
 import { 
   Card, 
-  CardMedia, 
   CardContent, 
+  CardMedia,
   Typography, 
-  Button, 
-  Chip, 
+  Button,
   Box, 
   LinearProgress,
-  ButtonGroup
+  ButtonGroup,
+  Avatar
 } from '@mui/material';
-import { AccessTime, Person, Edit, Visibility } from '@mui/icons-material';
+import { School, Edit, Visibility } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import './CourseCard.css';
 
@@ -23,10 +23,10 @@ const CourseCard = ({
   userRole = 'student',
   isCreator = false
 }) => {
-  const defaultImage = 'https://via.placeholder.com/300x200?text=Course+Image';
   const navigate = useNavigate();
   const isTutor = localStorage.getItem('isTutor') === 'true';
   const isAdmin = localStorage.getItem('isAdmin') === 'true';
+  const defaultImage = 'https://via.placeholder.com/300x200?text=Course+Image';
 
   const handleCourseAction = () => {
     if (userRole === 'teacher') {
@@ -53,84 +53,71 @@ const CourseCard = ({
     navigate(`/courses/${course.id}`);
   };
 
+  // Render the top part of the card based on whether there's an image
+  const renderCardTop = () => {
+    if (course.imageUrl) {
+      return (
+        <CardMedia
+          component="img"
+          height="120"
+          image={course.imageUrl}
+          alt={course.title}
+          className="course-card-media"
+        />
+      );
+    } else {
+      return (
+        <div className="course-card-top">
+          <Avatar className="course-icon">
+            <School />
+          </Avatar>
+        </div>
+      );
+    }
+  };
+
   return (
     <Card className="course-card">
-      <CardMedia
-        component="img"
-        height="200"
-        image={course.imageUrl || defaultImage}
-        alt={course.title}
-        className="course-card-media"
-      />
+      {renderCardTop()}
       
       <CardContent className="course-card-content">
-        <Box className="course-card-tags">
-          {course.category && (
-            <Chip 
-              label={course.category} 
-              size="small" 
-              className="category-tag"
-            />
-          )}
-          {course.level && (
-            <Chip 
-              label={course.level} 
-              size="small" 
-              className="level-tag"
-            />
-          )}
-        </Box>
-        
-        <Typography variant="h6" className="course-card-title">
-          {course.title}
-        </Typography>
-        
-        <Typography variant="body2" className="course-card-description">
-          {course.description}
-        </Typography>
-        
-        {course.instructor && (
+        <div className="course-card-info">
+          <Typography variant="h6" className="course-card-title">
+            {course.title}
+          </Typography>
+          
+          <Typography variant="body2" className="course-card-description">
+            {course.description}
+          </Typography>
+          
           <Typography variant="body2" className="course-card-instructor">
-            <Person fontSize="small" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
             {course.instructor}
           </Typography>
-        )}
+        </div>
         
-        {userRole === 'student' && isEnrolled && (
-          <Box className="course-progress">
-            <Box display="flex" justifyContent="space-between">
-              <Typography variant="caption">Progress</Typography>
-              <Typography variant="caption">{progress}%</Typography>
-            </Box>
-            <LinearProgress 
-              variant="determinate" 
-              value={progress} 
-              className="progress-bar"
-            />
+        <Box className="course-progress">
+          <Box display="flex" justifyContent="space-between">
+            <Typography variant="caption">Progress</Typography>
+            <Typography variant="caption">{userRole === 'student' && isEnrolled ? progress : 0}%</Typography>
           </Box>
-        )}
+          <LinearProgress 
+            variant="determinate" 
+            value={userRole === 'student' && isEnrolled ? progress : 0} 
+            className="progress-bar"
+          />
+        </Box>
         
         <Box className="course-card-actions">
           {userRole === 'student' ? (
-            isEnrolled ? (
-              <Button 
-                variant="contained" 
-                color="primary" 
-                fullWidth
-                onClick={handleCourseAction}
-              >
-                Continue Learning
-              </Button>
-            ) : (
-              <Button 
-                variant="contained" 
-                color="primary" 
-                fullWidth
-                onClick={handleCourseAction}
-              >
-                Enroll Now
-              </Button>
-            )
+            <Button 
+              variant="contained" 
+              color="primary" 
+              fullWidth
+              onClick={handleCourseAction}
+              startIcon={<School fontSize="small" />}
+            >
+              Continue Learning
+            </Button>
           ) : (
             // Teacher/Tutor UI
             <>
@@ -168,8 +155,9 @@ const CourseCard = ({
                   color="primary" 
                   fullWidth
                   onClick={handleCourseAction}
+                  startIcon={<School fontSize="small" />}
                 >
-                  Manage Course
+                  Continue Learning
                 </Button>
               )}
             </>

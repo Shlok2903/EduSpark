@@ -1,5 +1,5 @@
 .student-courses-page {
-  padding: 20px;
+  padding: 20px 10px;
 }
 
 .header {
@@ -82,15 +82,21 @@
 }
 
 .course-card-wrapper {
-  height: 100%;
   display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  padding: 0 5px;
 }
 
 .course-card-wrapper .course-card {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
+  width: 260px;
+  height: 400px;
+}
+
+/* Make courses display evenly in rows */
+.MuiGrid-container {
   width: 100%;
+  margin: 0 auto;
 }
 
 @media (max-width: 600px) {
@@ -106,5 +112,9 @@
   
   .notification-button {
     margin-top: 16px;
+  }
+  
+  .course-card-wrapper .course-card {
+    width: 100%;
   }
 } 

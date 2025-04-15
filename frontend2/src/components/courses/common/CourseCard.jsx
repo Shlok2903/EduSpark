@@ -1,14 +1,14 @@
 import React from 'react';
 import { 
   Card, 
-  CardMedia, 
   CardContent, 
+  CardMedia,
   Typography, 
-  Chip, 
   Box, 
-  LinearProgress
+  LinearProgress,
+  Avatar
 } from '@mui/material';
-import { Person, School } from '@mui/icons-material';
+import { School } from '@mui/icons-material';
 import './CourseCard.css';
 
 const CourseCard = ({ 
@@ -18,87 +18,66 @@ const CourseCard = ({
   userRole = 'student',
   action = null
 }) => {
-  // Use a fallback div with icon instead of remote placeholder
-  const renderDefaultImage = () => (
-    <Box 
-      sx={{ 
-        height: 180, 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        bgcolor: '#f5f5f5',
-        color: '#757575'
-      }}
-    >
-      <School sx={{ fontSize: 60 }} />
-    </Box>
-  );
-
   if (!course) {
     return null;
   }
 
-  return (
-    <Card className="course-card">
-      {course.imageUrl ? (
+  // Render the top part of the card based on whether there's an image
+  const renderCardTop = () => {
+    if (course.imageUrl) {
+      return (
         <CardMedia
           component="img"
-          height="180"
+          height="120"
           image={course.imageUrl}
-          alt={(course.title) || 'Course'}
+          alt={course.title || 'Course'}
           className="course-card-media"
         />
-      ) : renderDefaultImage()}
+      );
+    } else {
+      return (
+        <div className="course-card-top">
+          <Avatar className="course-icon">
+            <School />
+          </Avatar>
+        </div>
+      );
+    }
+  };
+
+  return (
+    <Card className="course-card">
+      {renderCardTop()}
       
       <CardContent className="course-card-content">
-        <Box className="course-card-tags">
-          {course.category && (
-            <Chip 
-              label={course.category} 
-              size="small" 
-              className="category-tag"
-            />
-          )}
-          {course.level && (
-            <Chip 
-              label={course.level} 
-              size="small" 
-              className="level-tag"
-            />
-          )}
+        <div className="course-card-info">
+          <Typography variant="h6" className="course-card-title">
+            {course.title || 'Untitled Course'}
+          </Typography>
+          
+          <Typography variant="body2" className="course-card-description">
+            {course.description || 'No description available'}
+          </Typography>
+          
+          <Typography variant="body2" className="course-card-instructor">
+            {course.instructor || 'Unknown Instructor'}
+          </Typography>
+        </div>
+        
+        <Box className="course-progress">
+          <Box display="flex" justifyContent="space-between">
+            <Typography variant="caption">Progress</Typography>
+            <Typography variant="caption">{isEnrolled ? progress : 0}%</Typography>
+          </Box>
+          <LinearProgress 
+            variant="determinate" 
+            value={isEnrolled ? progress : 0} 
+            className="progress-bar"
+          />
         </Box>
         
-        <Typography variant="h6" className="course-card-title">
-          {course.title || 'Untitled Course'}
-        </Typography>
-        
-        <Typography variant="body2" className="course-card-description">
-          {course.description || 'No description available'}
-        </Typography>
-        
-        {course.instructor && (
-          <Typography variant="body2" className="course-card-instructor">
-            <Person fontSize="small" sx={{ verticalAlign: 'middle', mr: 0.5 }} />
-            {course.instructor}
-          </Typography>
-        )}
-        
-        {userRole === 'student' && isEnrolled && (
-          <Box className="course-progress">
-            <Box display="flex" justifyContent="space-between">
-              <Typography variant="caption">Progress</Typography>
-              <Typography variant="caption">{progress}%</Typography>
-            </Box>
-            <LinearProgress 
-              variant="determinate" 
-              value={progress} 
-              className="progress-bar"
-            />
-          </Box>
-        )}
-        
         {action && (
-          <Box className="course-card-action">
+          <Box className="course-card-actions">
             {action}
           </Box>
         )}
