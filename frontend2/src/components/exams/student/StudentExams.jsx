@@ -87,7 +87,7 @@ const StudentExams = () => {
   };
 
   const handleStartExam = (examId) => {
-    navigate(`/exams/take/${examId}`);
+    navigate(`/strict/exam/${examId}`);
   };
 
   const handleViewResults = (attemptId) => {

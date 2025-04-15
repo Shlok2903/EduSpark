@@ -16,6 +16,14 @@ const practiceService = {
   getPracticeById: (practiceId) =>
     api.get(`/practice/${practiceId}`),
   
+  // Start a practice quiz (initializes timer)
+  startPractice: (practiceId) => 
+    api.post(`/practice/${practiceId}/start`),
+  
+  // Update time remaining
+  updateTimeRemaining: (practiceId, timeRemaining) => 
+    api.put(`/practice/${practiceId}/time`, { timeRemaining }),
+  
   // Submit practice attempt
   submitPracticeAttempt: (practiceId, answers) => 
     api.post(`/practice/${practiceId}/submit`, { answers }),

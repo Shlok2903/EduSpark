@@ -150,6 +150,7 @@ const generatePracticeQuestions = async (req, res) => {
         }`,
         difficulty,
         numberOfQuestions,
+        timeLimit: numberOfQuestions * 60, // 1 minute per question in seconds
         questions: questionsData,
       });
 
@@ -298,9 +299,97 @@ const submitPracticeAnswers = async (req, res) => {
   }
 };
 
+// Start a practice session
+const startPractice = async (req, res) => {
+  try {
+    const { practiceId } = req.params;
+    const userId = req.user.id;
+
+    // Find the practice
+    const practice = await Practice.findOne({
+      _id: practiceId,
+      userId,
+    });
+
+    if (!practice) {
+      return res.status(404).json({ message: "Practice session not found" });
+    }
+
+    if (practice.isCompleted) {
+      return res.status(400).json({ message: "This practice session is already completed" });
+    }
+
+    // Set the start time if not already set
+    if (!practice.startTime) {
+      practice.startTime = new Date();
+      await practice.save();
+    } else {
+      // If already started, calculate remaining time
+      const now = new Date();
+      const elapsedSeconds = Math.floor((now - practice.startTime) / 1000);
+      practice.timeRemaining = Math.max(0, practice.timeLimit - elapsedSeconds);
+      await practice.save();
+    }
+
+    // Return practice with questions but without correct answers
+    const responseData = {
+      ...practice.toObject(),
+      questions: practice.questions.map((q) => ({
+        _id: q._id,
+        question: q.question,
+        options: q.options,
+        userAnswer: q.userAnswer,
+      })),
+    };
+
+    return res.status(200).json(responseData);
+  } catch (error) {
+    console.error("Error starting practice:", error);
+    return res
+      .status(500)
+      .json({ message: "Server error", error: error.message });
+  }
+};
+
+// Update time remaining
+const updateTimeRemaining = async (req, res) => {
+  try {
+    const { practiceId } = req.params;
+    const { timeRemaining } = req.body;
+    const userId = req.user.id;
+
+    // Find the practice
+    const practice = await Practice.findOne({
+      _id: practiceId,
+      userId,
+    });
+
+    if (!practice) {
+      return res.status(404).json({ message: "Practice session not found" });
+    }
+
+    if (practice.isCompleted) {
+      return res.status(400).json({ message: "This practice session is already completed" });
+    }
+
+    // Update time remaining
+    practice.timeRemaining = timeRemaining;
+    await practice.save();
+
+    return res.status(200).json({ message: "Time updated successfully" });
+  } catch (error) {
+    console.error("Error updating time:", error);
+    return res
+      .status(500)
+      .json({ message: "Server error", error: error.message });
+  }
+};
+
 module.exports = {
   generatePracticeQuestions,
   getPracticeById,
   getUserPractices,
   submitPracticeAnswers,
+  startPractice,
+  updateTimeRemaining
 };

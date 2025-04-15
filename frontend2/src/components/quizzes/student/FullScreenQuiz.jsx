@@ -11,15 +11,23 @@ import {
   Grid,
   Container,
   Breadcrumbs,
-  Link
+  Link,
+  LinearProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions
 } from '@mui/material';
 import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
 import { 
   ArrowBack as ArrowBackIcon,
   Timer as TimerIcon,
-  Quiz as QuizIcon
+  Quiz as QuizIcon,
+  Warning as WarningIcon
 } from '@mui/icons-material';
 import { quizService, courseService, enrollmentService } from '../../../services/api';
+import { toast } from 'react-toastify';
 
 const FullScreenQuiz = () => {
   const { courseId, quizId } = useParams();
@@ -38,13 +46,34 @@ const FullScreenQuiz = () => {
   const [quizTimer, setQuizTimer] = useState(null);
   const [timerInterval, setTimerInterval] = useState(null);
   const [error, setError] = useState('');
+  const [confirmSubmit, setConfirmSubmit] = useState(false);
   
   // Format time as MM:SS
   const formatTime = (seconds) => {
     if (seconds === null || seconds === undefined) return '00:00';
-    const mins = Math.floor(seconds / 60);
+    const hours = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
+    
+    if (hours > 0) {
+      return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Get timer color based on remaining time
+  const getTimerColor = (seconds) => {
+    if (seconds === null || seconds === undefined) return 'primary';
+    
+    if (seconds < 60) return 'error'; // Less than 1 minute
+    if (seconds < 300) return 'warning'; // Less than 5 minutes
+    return 'primary';
+  };
+  
+  // Calculate percentage of time remaining
+  const getTimePercentage = (seconds, totalSeconds) => {
+    if (!seconds || !totalSeconds) return 100;
+    return Math.min(100, Math.max(0, (seconds / totalSeconds) * 100));
   };
   
   // Fetch quiz info
@@ -93,8 +122,8 @@ const FullScreenQuiz = () => {
         setQuizQuestions(questionsResponse.questions || []);
         
         // 3. Set up timer if the quiz has a time limit
-        if (response.attempt.timeRemaining > 0) {
-          setQuizTimer(response.attempt.timeRemaining);
+        if (questionsResponse.timeRemaining > 0) {
+          setQuizTimer(questionsResponse.timeRemaining);
           
           // Start the timer
           const intervalId = setInterval(() => {
@@ -109,8 +138,9 @@ const FullScreenQuiz = () => {
               
               // Auto-submit when time runs out
               if (newTime <= 0) {
-                submitQuiz(response.attempt._id);
                 clearInterval(intervalId);
+                toast.error("Time's up! Your quiz is being submitted automatically.");
+                submitQuiz(response.attempt._id, true);
                 return 0;
               }
               
@@ -138,9 +168,16 @@ const FullScreenQuiz = () => {
   };
   
   // Submit quiz
-  const submitQuiz = async (attemptId) => {
+  const submitQuiz = async (attemptId, isAutoSubmit = false) => {
+    // If not auto-submit and confirmation dialog is not shown yet, show it first
+    if (!isAutoSubmit && !confirmSubmit) {
+      setConfirmSubmit(true);
+      return;
+    }
+    
     try {
       setLoading(true);
+      setConfirmSubmit(false);
       
       // Clear timer interval if exists
       if (timerInterval) {
@@ -169,9 +206,14 @@ const FullScreenQuiz = () => {
           console.error('Error marking module as completed:', err);
         }
       }
+
+      if (!isAutoSubmit) {
+        toast.success('Quiz submitted successfully!');
+      }
     } catch (error) {
       console.error('Error submitting quiz:', error);
       setError('Failed to submit quiz');
+      toast.error('Failed to submit quiz. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -192,6 +234,60 @@ const FullScreenQuiz = () => {
       fetchQuizInfo();
     }
   }, [courseId, quizId]);
+  
+  // Render the timer with progress
+  const renderTimer = () => {
+    if (quizTimer === null || quizTimer === undefined) return null;
+    
+    const timerColor = getTimerColor(quizTimer);
+    const totalTime = quizInfo?.quizInfo?.timer * 60 || quizQuestions.length * 120; // Default 2 min per question
+    const timePercentage = getTimePercentage(quizTimer, totalTime);
+    const isWarning = timerColor === 'warning' || timerColor === 'error';
+    
+    return (
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          flexDirection: 'column',
+          alignItems: 'center', 
+          p: 1.5,
+          borderRadius: 2,
+          border: `2px solid ${timerColor}.main`,
+          bgcolor: `${timerColor}.lighter`,
+          animation: timerColor === 'error' ? 'pulse 1s infinite' : 'none'
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+          <TimerIcon 
+            color={timerColor} 
+            sx={{ mr: 1, animation: isWarning ? 'pulse 1s infinite' : 'none' }} 
+          />
+          <Typography 
+            variant="h5" 
+            fontWeight="bold" 
+            fontFamily="monospace" 
+            color={`${timerColor}.main`}
+          >
+            {formatTime(quizTimer)}
+          </Typography>
+          {isWarning && <WarningIcon color={timerColor} sx={{ ml: 1 }} />}
+        </Box>
+        <LinearProgress 
+          variant="determinate" 
+          value={timePercentage} 
+          color={timerColor}
+          sx={{ 
+            width: '100%', 
+            height: 8, 
+            borderRadius: 4,
+            '& .MuiLinearProgress-bar': {
+              transition: 'none'
+            }
+          }} 
+        />
+      </Box>
+    );
+  };
   
   if (loading && !quizAttempt) {
     return (
@@ -332,22 +428,7 @@ const FullScreenQuiz = () => {
               {quizTitle}
             </Typography>
             
-            {quizTimer > 0 && (
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center',
-                color: quizTimer < 300 ? 'error.main' : 'primary.main',
-                bgcolor: quizTimer < 300 ? 'error.light' : 'primary.light',
-                px: 2,
-                py: 1,
-                borderRadius: 2
-              }}>
-                <TimerIcon sx={{ mr: 1 }} />
-                <Typography variant="h6" fontFamily="monospace">
-                  {formatTime(quizTimer)}
-                </Typography>
-              </Box>
-            )}
+            {quizTimer > 0 && renderTimer()}
           </Box>
           
           {/* Questions */}
@@ -503,6 +584,44 @@ const FullScreenQuiz = () => {
           </Box>
         </Paper>
       )}
+
+      {/* Confirmation Dialog */}
+      <Dialog
+        open={confirmSubmit}
+        onClose={() => setConfirmSubmit(false)}
+      >
+        <DialogTitle>Submit Quiz</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to submit this quiz? You won't be able to change your answers once submitted.
+            {Object.keys(quizAnswers).length < quizQuestions.length && (
+              <Typography color="error" sx={{ mt: 2 }}>
+                Warning: You have only answered {Object.keys(quizAnswers).length} out of {quizQuestions.length} questions.
+              </Typography>
+            )}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmSubmit(false)} color="primary">
+            Cancel
+          </Button>
+          <Button 
+            onClick={() => submitQuiz(quizAttempt._id, true)} 
+            color="primary" 
+            variant="contained"
+          >
+            Submit
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <style jsx="true">{`
+        @keyframes pulse {
+          0% { opacity: 1; }
+          50% { opacity: 0.7; }
+          100% { opacity: 1; }
+        }
+      `}</style>
     </Container>
   );
 };

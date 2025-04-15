@@ -59,6 +59,23 @@ const PracticeSchema = new Schema({
     min: 5,
     max: 50
   },
+  startTime: {
+    type: Date,
+    default: null
+  },
+  timeLimit: {
+    type: Number, // in seconds
+    default: function() {
+      // Default to 1 minute per question
+      return this.numberOfQuestions * 60;
+    }
+  },
+  timeRemaining: {
+    type: Number, // in seconds
+    default: function() {
+      return this.timeLimit;
+    }
+  },
   questions: [QuestionSchema],
   correctAnswers: {
     type: Number,

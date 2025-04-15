@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Typography,
@@ -27,6 +27,10 @@ import {
   ListItemText,
   ListItemIcon,
   Badge,
+  Dialog,
+  AppBar,
+  Toolbar,
+  IconButton,
 } from "@mui/material";
 import {
   School,
@@ -37,10 +41,13 @@ import {
   PlayArrow,
   AccessTime,
   Check,
+  Close,
+  FullscreenExit,
 } from "@mui/icons-material";
 import { toast } from "react-toastify";
 import practiceService from "../../services/practiceService";
 import "./StudentPractice.css";
+import { useParams, useNavigate } from "react-router-dom";
 
 const difficultyLevels = [
   { value: "easy", label: "Easy" },
@@ -48,7 +55,7 @@ const difficultyLevels = [
   { value: "hard", label: "Hard" },
 ];
 
-const StudentPractice = () => {
+const StudentPractice = ({ fullScreenMode }) => {
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -61,12 +68,25 @@ const StudentPractice = () => {
   const [score, setScore] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
   const [practiceHistory, setPracticeHistory] = useState([]);
+  const [fullScreen, setFullScreen] = useState(fullScreenMode || false);
+  const [timer, setTimer] = useState(null);
+  const timerIntervalRef = useRef(null);
+  const { practiceId } = useParams();
+  const navigate = useNavigate();
 
   const [practiceParams, setPracticeParams] = useState({
     courseId: "",
     difficulty: "medium",
     numberOfQuestions: 5,
   });
+
+  // Format time as MM:SS
+  const formatTime = (seconds) => {
+    if (seconds === null || seconds === undefined) return '00:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   // Fetch enrolled courses for dropdown
   useEffect(() => {
@@ -141,15 +161,8 @@ const StudentPractice = () => {
 
       if (response) {
         console.log("Practice generated:", response);
-        setPractice(response);
-        // Initialize user answers object
-        const answers = {};
-        response.questions.forEach((q, index) => {
-          answers[index] = null;
-        });
-        setUserAnswers(answers);
-        setPracticeComplete(false);
-        setScore(null);
+        // Navigate to the fullscreen practice
+        navigate(`/practice/${response._id}`);
       }
     } catch (error) {
       console.error("Failed to generate practice:", error);
@@ -162,13 +175,29 @@ const StudentPractice = () => {
     }
   };
 
+  // If in fullScreenMode and practiceId is provided, load that practice automatically
+  useEffect(() => {
+    if (fullScreenMode && practiceId) {
+      handleLoadPractice(practiceId);
+    }
+  }, [fullScreenMode, practiceId]);
+
   const handleLoadPractice = async (practiceId) => {
+    if (!fullScreenMode) {
+      // If we're not in fullscreen mode, redirect to the fullscreen route
+      navigate(`/practice/${practiceId}`);
+      return;
+    }
+    
     try {
       setLoadingPractice(true);
-      const response = await practiceService.getPracticeById(practiceId);
+      
+      // Start the practice to initialize timer
+      const response = await practiceService.startPractice(practiceId);
 
       if (response) {
         setPractice(response);
+        setFullScreen(true);
 
         // Initialize user answers object
         const answers = {};
@@ -192,6 +221,16 @@ const StudentPractice = () => {
           });
           setPracticeComplete(false);
           setScore(null);
+          
+          // Set timer
+          const timerValue = response.timeRemaining || response.timeLimit || response.questions.length * 60;
+          console.log("Setting timer value:", timerValue);
+          setTimer(timerValue);
+          
+          // Start the timer
+          if (timerValue > 0) {
+            startTimer(response._id);
+          }
         }
 
         setUserAnswers(answers);
@@ -204,6 +243,47 @@ const StudentPractice = () => {
       setLoadingPractice(false);
     }
   };
+  
+  // Start the timer
+  const startTimer = (practiceId) => {
+    // Clear any existing interval
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+    }
+    
+    console.log("Starting timer for practice ID:", practiceId);
+    
+    // Create new timer interval
+    timerIntervalRef.current = setInterval(() => {
+      setTimer((prevTime) => {
+        console.log("Timer tick:", prevTime);
+        if (prevTime <= 0) {
+          clearInterval(timerIntervalRef.current);
+          handleSubmitPractice(true);
+          return 0;
+        }
+        
+        const newTime = prevTime - 1;
+        
+        // Save time to server every 30 seconds
+        if (newTime % 30 === 0) {
+          practiceService.updateTimeRemaining(practiceId, newTime)
+            .catch(err => console.error("Error updating time:", err));
+        }
+        
+        return newTime;
+      });
+    }, 1000);
+  };
+  
+  // Clean up timer on component unmount
+  useEffect(() => {
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
+    };
+  }, []);
 
   const handleAnswerChange = (questionIndex, optionIndex) => {
     setUserAnswers({
@@ -212,13 +292,13 @@ const StudentPractice = () => {
     });
   };
 
-  const handleSubmitPractice = async () => {
+  const handleSubmitPractice = async (isAutoSubmit = false) => {
     // Check if all questions are answered
     const unansweredQuestions = Object.values(userAnswers).filter(
       (ans) => ans === null
     ).length;
 
-    if (unansweredQuestions > 0) {
+    if (!isAutoSubmit && unansweredQuestions > 0) {
       toast.warning(
         `You have ${unansweredQuestions} unanswered questions. Are you sure you want to submit?`
       );
@@ -226,14 +306,28 @@ const StudentPractice = () => {
     }
 
     try {
+      // Clear timer interval
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+      
       setSubmitting(true);
+      
+      // Create answers array from userAnswers
       const answersArray = Object.entries(userAnswers).map(
         ([questionIndex, optionIndex]) => ({
           questionId: practice.questions[parseInt(questionIndex)]._id,
-          answer:
-            practice.questions[parseInt(questionIndex)].options[optionIndex],
+          answer: optionIndex !== null 
+            ? practice.questions[parseInt(questionIndex)].options[optionIndex]
+            : null,
         })
       );
+
+      // If auto-submit due to timer, show a toast notification
+      if (isAutoSubmit) {
+        toast.info("Time's up! Your answers have been automatically submitted.");
+      }
 
       const response = await practiceService.submitPracticeAttempt(
         practice._id,
@@ -247,7 +341,11 @@ const StudentPractice = () => {
           (response.correctAnswers / response.questions.length) * 100
         );
         setScore(score);
-        toast.success("Practice submitted successfully!");
+        
+        if (!isAutoSubmit) {
+          toast.success("Practice submitted successfully!");
+        }
+        
         fetchPracticeHistory(); // Refresh the history
       }
     } catch (error) {
@@ -358,7 +456,7 @@ const StudentPractice = () => {
                 variant="outlined"
                 color="primary"
                 startIcon={<PlayArrow />}
-                onClick={() => handleLoadPractice(item._id)}
+                onClick={() => navigate(`/practice/${item._id}`)}
                 disabled={loadingPractice}
               >
                 {item.isCompleted ? "Review" : "Continue"}
@@ -464,7 +562,21 @@ const StudentPractice = () => {
               variant="outlined"
               sx={{ mr: 1 }}
             />
-            <Chip icon={<Timer />} label="No time limit" variant="outlined" />
+            {timer !== null && (
+              <Chip 
+                icon={<Timer />} 
+                label={formatTime(timer)}
+                color={timer < 60 ? "error" : timer < 180 ? "warning" : "primary"}
+                variant={timer < 60 ? "filled" : "outlined"}
+                sx={{ 
+                  fontSize: '1rem', 
+                  fontWeight: 'bold',
+                  height: 'auto', 
+                  padding: '10px',
+                  animation: timer < 60 ? 'pulse 1s infinite' : 'none'
+                }}
+              />
+            )}
           </Grid>
         </Grid>
       </Paper>
@@ -530,7 +642,7 @@ const StudentPractice = () => {
           color="primary"
           fullWidth
           disabled={submitting}
-          onClick={handleSubmitPractice}
+          onClick={() => handleSubmitPractice(false)}
           className="submit-button"
         >
           {submitting ? <CircularProgress size={24} /> : "Submit Answers"}
@@ -567,58 +679,144 @@ const StudentPractice = () => {
     </Box>
   );
 
-  // Main render
+  // Handle exiting fullscreen mode
+  const handleExitFullScreen = () => {
+    // Ask for confirmation if the quiz is not completed
+    if (!practiceComplete && practice) {
+      if (window.confirm("Are you sure you want to exit? Your progress will be saved.")) {
+        if (fullScreenMode) {
+          // If directly loaded in fullscreen mode, go back to practice list
+          navigate('/practice');
+        } else {
+          setFullScreen(false);
+        }
+      }
+    } else {
+      if (fullScreenMode) {
+        navigate('/practice');
+      } else {
+        setFullScreen(false);
+      }
+    }
+  };
+
+  // Main render with fullscreen support
   return (
-    <Box className="student-practice-container">
-      <Typography variant="h4" className="page-title">
-        Practice Questions
-      </Typography>
-      <Typography variant="body1" className="page-description">
-        Generate AI-powered practice questions based on your enrolled courses to
-        test your knowledge.
-      </Typography>
-
-      {practice ? (
-        // Show practice quiz
-        renderPracticeQuestions()
-      ) : (
-        // Show tabs when no active practice
-        <Box className="practice-content">
-          {loading ? (
-            <Box className="loading-state">
-              <CircularProgress />
-              <Typography>Loading your courses...</Typography>
-            </Box>
-          ) : courses.length === 0 ? (
-            <Alert severity="info" className="no-courses-alert">
-              You are not enrolled in any courses. Please enroll in a course to
-              practice.
-            </Alert>
-          ) : (
-            <>
-              <Paper className="tabs-container">
-                <Tabs
-                  value={activeTab}
-                  onChange={handleTabChange}
-                  variant="fullWidth"
-                  indicatorColor="primary"
-                  textColor="primary"
-                >
-                  <Tab icon={<Add />} label="New Practice" />
-                  <Tab icon={<History />} label="Practice History" />
-                </Tabs>
-              </Paper>
-
-              <Box className="tab-content">
-                {activeTab === 0
-                  ? renderPracticeForm()
-                  : renderPracticeHistory()}
+    <>
+      {fullScreen ? (
+        <Dialog
+          fullScreen
+          open={fullScreen}
+          onClose={handleExitFullScreen}
+        >
+          <AppBar position="static" color="default" elevation={0}>
+            <Toolbar>
+              <IconButton
+                edge="start"
+                color="inherit"
+                onClick={handleExitFullScreen}
+                aria-label="close"
+              >
+                <FullscreenExit />
+              </IconButton>
+              <Typography variant="h6" sx={{ flex: 1 }}>
+                Practice Quiz
+              </Typography>
+              {timer !== null && (
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  color: timer < 60 ? 'error.main' : timer < 180 ? 'warning.main' : 'primary.main',
+                  bgcolor: timer < 60 ? 'error.light' : timer < 180 ? 'warning.light' : 'primary.light',
+                  px: 3,
+                  py: 1.5,
+                  borderRadius: 2,
+                  mr: 2,
+                  fontWeight: 'bold',
+                  border: timer < 60 ? '2px solid #f44336' : timer < 180 ? '2px solid #ff9800' : '1px solid #3f51b5',
+                  animation: timer < 60 ? 'pulse 1s infinite' : 'none'
+                }}>
+                  <Timer sx={{ mr: 1, fontSize: '1.5rem' }} />
+                  <Typography variant="h5" fontFamily="monospace" fontWeight="bold">
+                    {formatTime(timer)}
+                  </Typography>
+                </Box>
+              )}
+            </Toolbar>
+          </AppBar>
+          
+          <Box sx={{ p: 3 }}>
+            {loading || loadingPractice ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+                <CircularProgress size={60} />
               </Box>
-            </>
+            ) : practice ? (
+              renderPracticeQuestions()
+            ) : (
+              <Typography>No practice found</Typography>
+            )}
+          </Box>
+        </Dialog>
+      ) : (
+        <Box className="student-practice-container">
+          <Typography variant="h4" className="page-title">
+            Practice Questions
+          </Typography>
+          <Typography variant="body1" className="page-description">
+            Generate AI-powered practice questions based on your enrolled courses to
+            test your knowledge.
+          </Typography>
+  
+          {practice ? (
+            // Show practice quiz
+            renderPracticeQuestions()
+          ) : (
+            // Show tabs when no active practice
+            <Box className="practice-content">
+              {loading ? (
+                <Box className="loading-state">
+                  <CircularProgress />
+                  <Typography>Loading your courses...</Typography>
+                </Box>
+              ) : courses.length === 0 ? (
+                <Alert severity="info" className="no-courses-alert">
+                  You are not enrolled in any courses. Please enroll in a course to
+                  practice.
+                </Alert>
+              ) : (
+                <>
+                  <Paper className="tabs-container">
+                    <Tabs
+                      value={activeTab}
+                      onChange={handleTabChange}
+                      variant="fullWidth"
+                      indicatorColor="primary"
+                      textColor="primary"
+                    >
+                      <Tab icon={<Add />} label="New Practice" />
+                      <Tab icon={<History />} label="Practice History" />
+                    </Tabs>
+                  </Paper>
+  
+                  <Box className="tab-content">
+                    {activeTab === 0
+                      ? renderPracticeForm()
+                      : renderPracticeHistory()}
+                  </Box>
+                </>
+              )}
+            </Box>
           )}
         </Box>
       )}
-    </Box>
+      <style jsx="true">{`
+        @keyframes pulse {
+          0% { opacity: 1; }
+          50% { opacity: 0.5; }
+          100% { opacity: 1; }
+        }
+      `}</style>
+    </>
   );
 };
 

@@ -9,8 +9,14 @@ router.use(verifyToken);
 // Generate practice questions
 router.post('/generate', practiceController.generatePracticeQuestions);
 
-// Get practice by ID
+// Get a specific practice by ID
 router.get('/:practiceId', practiceController.getPracticeById);
+
+// Start practice quiz (sets the start time)
+router.post('/:practiceId/start', practiceController.startPractice);
+
+// Update time remaining
+router.put('/:practiceId/time', practiceController.updateTimeRemaining);
 
 // Get all practices for user
 router.get('/', practiceController.getUserPractices);

@@ -114,6 +114,24 @@ const StudentRoute = ({ children }) => {
   return <MainLayout>{children}</MainLayout>;
 };
 
+// Direct route without layout (for fullscreen components)
+const DirectStudentRoute = ({ children }) => {
+  const isAuthenticated = !!localStorage.getItem('jwtToken');
+  const isTeacher = localStorage.getItem('isTutor') === 'true';
+  const isAdmin = localStorage.getItem('isAdmin') === 'true';
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
+  
+  // If teacher or admin is trying to access student pages, redirect to their dashboard
+  if (isTeacher || isAdmin) {
+    return <Navigate to="/dashboard/manage-courses" />;
+  }
+  
+  return children;
+};
+
 function App() {
   return (
     <StyledEngineProvider injectFirst>
@@ -219,7 +237,17 @@ function App() {
                 }
               />
               
-              {/* Other Routes */}
+              {/* Direct routes without sidebar */}
+              <Route
+                path="/practice/:practiceId"
+                element={
+                  <DirectStudentRoute>
+                    <StudentPractice fullScreenMode />
+                  </DirectStudentRoute>
+                }
+              />
+
+              {/* Routes with layout */}
               <Route
                 path="/practice"
                 element={
@@ -252,27 +280,27 @@ function App() {
               <Route
                 path="/strict/quiz/:quizId"
                 element={
-                  <StudentRoute>
+                  <DirectStudentRoute>
                     <StrictModeQuiz />
-                  </StudentRoute>
+                  </DirectStudentRoute>
                 }
               />
               
               <Route
                 path="/strict/exam/:examId"
                 element={
-                  <StudentRoute>
+                  <DirectStudentRoute>
                     <StrictModeQuiz />
-                  </StudentRoute>
+                  </DirectStudentRoute>
                 }
               />
               
               <Route
                 path="/strict/exam/:examId/attempt/:attemptId"
                 element={
-                  <StudentRoute>
+                  <DirectStudentRoute>
                     <StrictModeQuiz />
-                  </StudentRoute>
+                  </DirectStudentRoute>
                 }
               />
               
@@ -317,9 +345,9 @@ function App() {
               <Route
                 path="/courses/:courseId/quiz/:quizId"
                 element={
-                  <StudentRoute>
+                  <DirectStudentRoute>
                     <FullScreenQuiz />
-                  </StudentRoute>
+                  </DirectStudentRoute>
                 }
               />
               

@@ -98,6 +98,15 @@ exports.startQuiz = async (req, res) => {
     });
 
     if (existingAttempt) {
+      // Update the remaining time based on the startTime
+      if (existingAttempt.startTime && existingAttempt.duration > 0) {
+        const now = new Date();
+        const elapsedSeconds = Math.floor((now - existingAttempt.startTime) / 1000);
+        const totalSeconds = existingAttempt.duration * 60; // Convert minutes to seconds
+        existingAttempt.timeRemaining = Math.max(0, totalSeconds - elapsedSeconds);
+        await existingAttempt.save();
+      }
+
       // Return minimal information about the attempt
       return res.status(200).json({
         message: 'Resuming existing quiz attempt',
@@ -121,13 +130,21 @@ exports.startQuiz = async (req, res) => {
     // Create answer objects for each question, but don't include the full questions
     const quizQuestions = module.quizContent?.questions || module.content?.quiz?.questions || [];
     
+    // Calculate timer duration - either use module setting or calculate 2 minutes per question
+    let quizDuration = module.quizContent?.timer || 0;
+    if (quizDuration === 0 && quizQuestions.length > 0) {
+      // Default to 2 minutes per question if no timer is set
+      quizDuration = quizQuestions.length * 2;
+    }
+    
     // Create a new quiz attempt
     const newAttempt = new QuizAttempt({
       moduleId,
       userId,
       courseId: module.courseId,
-      duration: module.quizContent?.timer || 0,
-      timeRemaining: module.quizContent?.timer ? module.quizContent.timer * 60 : 0, // Convert to seconds if timer exists
+      startTime: new Date(), // Set the start time explicitly
+      duration: quizDuration,
+      timeRemaining: quizDuration * 60, // Convert to seconds
       status: 'in-progress',
       answers: quizQuestions.map(question => ({
         questionId: question._id,
@@ -453,9 +470,22 @@ exports.getQuizQuestions = async (req, res) => {
       marks: question.marks || 1
     }));
 
+    // If there's a time limit and startTime is set, calculate the remaining time
+    let timeRemaining = attempt.timeRemaining;
+    if (attempt.startTime && attempt.duration > 0) {
+      const now = new Date();
+      const elapsedSeconds = Math.floor((now - attempt.startTime) / 1000);
+      const totalSeconds = attempt.duration * 60; // Convert duration from minutes to seconds
+      timeRemaining = Math.max(0, totalSeconds - elapsedSeconds);
+      
+      // Update the attempt with the calculated time remaining
+      attempt.timeRemaining = timeRemaining;
+      await attempt.save();
+    }
+
     return res.status(200).json({
       questions,
-      timeRemaining: attempt.timeRemaining
+      timeRemaining
     });
   } catch (error) {
     console.error('Error in getQuizQuestions:', error);
