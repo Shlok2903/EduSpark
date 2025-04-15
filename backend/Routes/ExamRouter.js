@@ -22,6 +22,10 @@ const upload = multer({ storage });
 // Get all my attempts (student view)
 router.get('/my/attempts', verifyToken, examController.getMyAttempts);
 
+// New route to get all exams for a user's enrolled courses
+router.get('/user/exams', verifyToken, examController.getUserExams);
+router.get('/user/:userId/exams', verifyToken, examController.getUserExams);
+
 // Exam routes (teacher routes)
 router.post('/create', verifyToken, examController.createExam);
 router.get('/course/:courseId', verifyToken, examController.getCourseExams);

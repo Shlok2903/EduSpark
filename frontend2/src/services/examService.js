@@ -44,6 +44,10 @@ const examService = {
   getMyAttempts: () => 
     api.get(`/exams/my/attempts`),
 
+  // Get all exams from enrolled courses
+  getUserExams: () => 
+    api.get(`/exams/user/exams`),
+
   // Start an exam attempt
   startExam: async (examId) => {
     try {

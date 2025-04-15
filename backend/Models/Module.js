@@ -32,7 +32,11 @@ const QuizQuestionSchema = new Schema({
     type: String,
     required: true
   },
-  options: [QuizOptionSchema]
+  options: [QuizOptionSchema],
+  marks: {
+    type: Number,
+    default: 1
+  }
 });
 
 const QuizContentSchema = new Schema({
@@ -40,6 +44,27 @@ const QuizContentSchema = new Schema({
   passingScore: {
     type: Number,
     default: 70
+  },
+  timer: {
+    type: Number,
+    default: 0,  // Time in minutes, 0 means no time limit
+    min: 0
+  },
+  deadline: {
+    type: Date,
+    default: null  // null means no deadline
+  },
+  maxAttempts: {
+    type: Number,
+    default: 0,  // 0 means unlimited attempts
+    min: 0
+  },
+  totalMarks: {
+    type: Number,
+    default: function() {
+      // Calculate total marks based on questions
+      return this.questions ? this.questions.reduce((sum, q) => sum + (q.marks || 1), 0) : 0;
+    }
   }
 });
 

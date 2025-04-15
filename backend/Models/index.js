@@ -9,6 +9,7 @@ const Enrollment = require('./Enrollment');
 const Practice = require('./Practice');
 const Exam = require('./Exam');
 const ExamAttempt = require('./ExamAttempt');
+const QuizAttempt = require('./QuizAttempt');
 
 module.exports = {
   User,
@@ -21,5 +22,6 @@ module.exports = {
   Enrollment,
   Practice,
   Exam,
-  ExamAttempt
+  ExamAttempt,
+  QuizAttempt
 }; 

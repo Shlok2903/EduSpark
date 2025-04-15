@@ -42,7 +42,8 @@ import {
   Quiz as QuizIcon,
   Close as CloseIcon,
   ArrowBack as ArrowBackIcon,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  PlayArrow as PlayArrowIcon
 } from '@mui/icons-material';
 import { courseService } from '../../../services/api';
 import './CourseDetail.css';
@@ -541,12 +542,12 @@ const CourseDetail = () => {
       <Box className="course-header">
         <Button
           startIcon={<ArrowBackIcon />}
-          onClick={() => navigate('/dashboard/courses')}
+          onClick={() => navigate('/dashboard/manage-courses')}
           className="back-button"
         >
           Back to Courses
         </Button>
-        <Box className="course-header-title">
+        <Box className="course-header-title" sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Typography variant="h4" className="course-title">
             {course.title}
           </Typography>
@@ -560,11 +561,11 @@ const CourseDetail = () => {
         </Box>
         <Box className="course-info">
           <Chip 
-            label={course.category} 
+            label={course.category || 'Uncategorized'} 
             className="course-category"
           />
           <Chip 
-            label={course.level} 
+            label={course.level || 'All Levels'} 
             className="course-level"
           />
           <Typography variant="body1" className="course-students">
@@ -915,7 +916,7 @@ const CourseDetail = () => {
                           onClick={() => handleQuizOptionCorrectChange(questionIndex, optionIndex)}
                           sx={{ ml: 1 }}
                         >
-                          <CheckCircleIcon />
+                          <PlayArrowIcon />
                         </IconButton>
                         {question.options.length > 2 && (
                           <IconButton

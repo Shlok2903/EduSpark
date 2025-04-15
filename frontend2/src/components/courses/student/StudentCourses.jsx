@@ -196,16 +196,16 @@ const StudentCourses = () => {
                 : "No courses found."}
             </Typography>
           ) : (
-            <Grid container spacing={3}>
+            <Grid container spacing={4}>
               {filteredCourses.map(course => {
                 const courseId = course._id || course.id;
                 return (
-                  <Grid item xs={12} sm={6} md={4} key={courseId}>
+                  <Grid item xs={12} sm={6} md={4} key={courseId} className="course-card-wrapper">
                     <CourseCard
                       course={{
                         id: courseId,
                         title: course.title,
-                        instructor: course.tutor || 'Unknown Instructor',
+                        instructor: course.createdBy?.name || 'Unknown Instructor',
                         imageUrl: course.imageUrl,
                         isOptional: course.isOptional,
                         description: course.description

@@ -4,6 +4,8 @@ import enrollmentService from './enrollmentService';
 import authService from './authService';
 import sectionService from './sectionService';
 import moduleService from './moduleService';
+import examService from './examService';
+import quizService from './quizService';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -59,7 +61,9 @@ export {
   enrollmentService,
   authService,
   sectionService,
-  moduleService
+  moduleService,
+  examService,
+  quizService
 };
 
 export default api; 

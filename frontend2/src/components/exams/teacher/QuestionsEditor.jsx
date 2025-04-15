@@ -278,191 +278,189 @@ const QuestionsEditor = ({ sections, onSectionsChange, negativeMarking }) => {
                   </Alert>
                 ) : (
                   section.questions.map((question, questionIndex) => (
-                    <Accordion
-                      key={questionIndex}
-                      expanded={expandedQuestion[sectionIndex] === questionIndex}
-                      onChange={() => handleQuestionToggle(sectionIndex, questionIndex)}
-                      className="question-accordion"
-                    >
-                      <Box sx={{ display: 'flex', width: '100%' }}>
+                    <Box key={questionIndex} sx={{ mb: 2 }}>
+                      <Box sx={{ display: 'flex', width: '100%', mb: 1 }}>
+                        <Typography variant="body1" sx={{ flex: 1 }}>
+                          Q{questionIndex + 1}: {question.text ? 
+                            (question.text.substring(0, 60) + (question.text.length > 60 ? '...' : '')) : 
+                            `Question ${questionIndex + 1}`
+                          }
+                        </Typography>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => removeQuestion(sectionIndex, questionIndex)}
+                          sx={{ ml: 1 }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                      
+                      <Accordion
+                        expanded={expandedQuestion[sectionIndex] === questionIndex}
+                        onChange={() => handleQuestionToggle(sectionIndex, questionIndex)}
+                        className="question-accordion"
+                      >
                         <AccordionSummary
                           expandIcon={<ExpandMoreIcon />}
                           className="question-header"
-                          sx={{ flex: 1 }}
                         >
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                            <Typography>
-                              {question.text ? 
-                                `Q${questionIndex + 1}: ${question.text.substring(0, 60)}${question.text.length > 60 ? '...' : ''}` : 
-                                `Question ${questionIndex + 1}`
-                              }
-                            </Typography>
                             <Typography variant="body2" color="textSecondary">
                               {questionTypes.find(t => t.value === question.type)?.label || 'MCQ'} | {question.marks} marks
                             </Typography>
                           </Box>
                         </AccordionSummary>
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeQuestion(sectionIndex, questionIndex);
-                          }}
-                          sx={{ alignSelf: 'center', mr: 1 }}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
-                      <AccordionDetails>
-                        <Grid container spacing={2}>
-                          <Grid item xs={12}>
-                            <TextField
-                              label="Question Text"
-                              value={question.text}
-                              onChange={(e) => handleQuestionTextChange(sectionIndex, questionIndex, e.target.value)}
-                              fullWidth
-                              multiline
-                              rows={2}
-                              placeholder="Enter your question here..."
-                            />
-                          </Grid>
-                          
-                          <Grid item xs={12} sm={6} md={4}>
-                            <FormControl fullWidth>
-                              <InputLabel>Question Type</InputLabel>
-                              <Select
-                                value={question.type}
-                                onChange={(e) => handleQuestionTypeChange(sectionIndex, questionIndex, e.target.value)}
-                                label="Question Type"
-                              >
-                                {questionTypes.map((type) => (
-                                  <MenuItem key={type.value} value={type.value}>
-                                    {type.label}
-                                  </MenuItem>
-                                ))}
-                              </Select>
-                            </FormControl>
-                          </Grid>
-                          
-                          <Grid item xs={12} sm={6} md={4}>
-                            <TextField
-                              label="Marks"
-                              type="number"
-                              value={question.marks}
-                              onChange={(e) => handleMarksChange(sectionIndex, questionIndex, Number(e.target.value))}
-                              fullWidth
-                              InputProps={{
-                                inputProps: { min: 0 }
-                              }}
-                            />
-                          </Grid>
-                          
-                          {negativeMarking && (
+                        <AccordionDetails>
+                          <Grid container spacing={2}>
+                            <Grid item xs={12}>
+                              <TextField
+                                label="Question Text"
+                                value={question.text}
+                                onChange={(e) => handleQuestionTextChange(sectionIndex, questionIndex, e.target.value)}
+                                fullWidth
+                                multiline
+                                rows={2}
+                                placeholder="Enter your question here..."
+                              />
+                            </Grid>
+                            
+                            <Grid item xs={12} sm={6} md={4}>
+                              <FormControl fullWidth>
+                                <InputLabel>Question Type</InputLabel>
+                                <Select
+                                  value={question.type}
+                                  onChange={(e) => handleQuestionTypeChange(sectionIndex, questionIndex, e.target.value)}
+                                  label="Question Type"
+                                >
+                                  {questionTypes.map((type) => (
+                                    <MenuItem key={type.value} value={type.value}>
+                                      {type.label}
+                                    </MenuItem>
+                                  ))}
+                                </Select>
+                              </FormControl>
+                            </Grid>
+                            
                             <Grid item xs={12} sm={6} md={4}>
                               <TextField
-                                label="Negative Marks"
+                                label="Marks"
                                 type="number"
-                                value={question.negativeMarks}
-                                onChange={(e) => handleNegativeMarksChange(sectionIndex, questionIndex, Number(e.target.value))}
+                                value={question.marks}
+                                onChange={(e) => handleMarksChange(sectionIndex, questionIndex, Number(e.target.value))}
                                 fullWidth
                                 InputProps={{
                                   inputProps: { min: 0 }
                                 }}
-                                helperText="Marks deducted for wrong answer"
                               />
                             </Grid>
-                          )}
-                          
-                          {question.type === 'mcq' && (
-                            <Grid item xs={12}>
-                              <Typography variant="subtitle2" gutterBottom>
-                                Options (select the correct answer)
-                              </Typography>
-                              
-                              <Box className="options-container">
-                                <RadioGroup
-                                  value={question.options.findIndex(opt => opt.isCorrect)}
-                                  onChange={(e) => handleCorrectOptionChange(sectionIndex, questionIndex, Number(e.target.value))}
-                                >
-                                  {question.options.map((option, optionIndex) => (
-                                    <Box key={optionIndex} className="option-field">
-                                      <Radio
-                                        value={optionIndex}
-                                        checked={option.isCorrect}
-                                        className="option-radio"
-                                      />
-                                      <TextField
-                                        value={option.text}
-                                        onChange={(e) => handleOptionTextChange(sectionIndex, questionIndex, optionIndex, e.target.value)}
-                                        fullWidth
-                                        placeholder={`Option ${optionIndex + 1}`}
-                                        className="option-input"
-                                      />
-                                      <IconButton
-                                        color="error"
-                                        onClick={() => removeOption(sectionIndex, questionIndex, optionIndex)}
-                                        disabled={question.options.length <= 2}
-                                      >
-                                        <RemoveOptionIcon />
-                                      </IconButton>
-                                    </Box>
-                                  ))}
-                                </RadioGroup>
+                            
+                            {negativeMarking && (
+                              <Grid item xs={12} sm={6} md={4}>
+                                <TextField
+                                  label="Negative Marks"
+                                  type="number"
+                                  value={question.negativeMarks}
+                                  onChange={(e) => handleNegativeMarksChange(sectionIndex, questionIndex, Number(e.target.value))}
+                                  fullWidth
+                                  InputProps={{
+                                    inputProps: { min: 0 }
+                                  }}
+                                  helperText="Marks deducted for wrong answer"
+                                />
+                              </Grid>
+                            )}
+                            
+                            {question.type === 'mcq' && (
+                              <Grid item xs={12}>
+                                <Typography variant="subtitle2" gutterBottom>
+                                  Options (select the correct answer)
+                                </Typography>
                                 
-                                <Button
-                                  startIcon={<AddOptionIcon />}
-                                  onClick={() => addOption(sectionIndex, questionIndex)}
-                                  color="primary"
-                                  size="small"
-                                  sx={{ mt: 1 }}
-                                >
-                                  Add Option
-                                </Button>
-                              </Box>
-                            </Grid>
-                          )}
-                          
-                          {question.type === 'subjective' && (
-                            <Grid item xs={12}>
-                              <TextField
-                                label="Model Answer (optional)"
-                                multiline
-                                rows={3}
-                                fullWidth
-                                placeholder="Enter a model answer for reference when grading"
-                                value={question.answer || ''}
-                                onChange={(e) => {
-                                  const updatedSections = [...sections];
-                                  updatedSections[sectionIndex].questions[questionIndex].answer = e.target.value;
-                                  onSectionsChange(updatedSections);
-                                }}
-                              />
-                              <FormHelperText>
-                                This will only be visible to you when grading and won't be shown to students
-                              </FormHelperText>
-                            </Grid>
-                          )}
-                          
-                          {question.type === 'fileUpload' && (
-                            <Grid item xs={12}>
-                              <TextField
-                                label="Accepted File Types"
-                                fullWidth
-                                placeholder="e.g. pdf,doc,docx,zip,rar"
-                                value={question.fileTypes || ''}
-                                onChange={(e) => {
-                                  const updatedSections = [...sections];
-                                  updatedSections[sectionIndex].questions[questionIndex].fileTypes = e.target.value;
-                                  onSectionsChange(updatedSections);
-                                }}
-                                helperText="Comma-separated list of allowed file extensions"
-                              />
-                            </Grid>
-                          )}
-                        </Grid>
-                      </AccordionDetails>
-                    </Accordion>
+                                <Box className="options-container">
+                                  <RadioGroup
+                                    value={question.options.findIndex(opt => opt.isCorrect)}
+                                    onChange={(e) => handleCorrectOptionChange(sectionIndex, questionIndex, Number(e.target.value))}
+                                  >
+                                    {question.options.map((option, optionIndex) => (
+                                      <Box key={optionIndex} className="option-field">
+                                        <Radio
+                                          value={optionIndex}
+                                          checked={option.isCorrect}
+                                          className="option-radio"
+                                        />
+                                        <TextField
+                                          value={option.text}
+                                          onChange={(e) => handleOptionTextChange(sectionIndex, questionIndex, optionIndex, e.target.value)}
+                                          fullWidth
+                                          placeholder={`Option ${optionIndex + 1}`}
+                                          className="option-input"
+                                        />
+                                        <IconButton
+                                          color="error"
+                                          onClick={() => removeOption(sectionIndex, questionIndex, optionIndex)}
+                                          disabled={question.options.length <= 2}
+                                        >
+                                          <RemoveOptionIcon />
+                                        </IconButton>
+                                      </Box>
+                                    ))}
+                                  </RadioGroup>
+                                  
+                                  <Button
+                                    startIcon={<AddOptionIcon />}
+                                    onClick={() => addOption(sectionIndex, questionIndex)}
+                                    color="primary"
+                                    size="small"
+                                    sx={{ mt: 1 }}
+                                  >
+                                    Add Option
+                                  </Button>
+                                </Box>
+                              </Grid>
+                            )}
+                            
+                            {question.type === 'subjective' && (
+                              <Grid item xs={12}>
+                                <TextField
+                                  label="Model Answer (optional)"
+                                  multiline
+                                  rows={3}
+                                  fullWidth
+                                  placeholder="Enter a model answer for reference when grading"
+                                  value={question.answer || ''}
+                                  onChange={(e) => {
+                                    const updatedSections = [...sections];
+                                    updatedSections[sectionIndex].questions[questionIndex].answer = e.target.value;
+                                    onSectionsChange(updatedSections);
+                                  }}
+                                />
+                                <FormHelperText>
+                                  This will only be visible to you when grading and won't be shown to students
+                                </FormHelperText>
+                              </Grid>
+                            )}
+                            
+                            {question.type === 'fileUpload' && (
+                              <Grid item xs={12}>
+                                <TextField
+                                  label="Accepted File Types"
+                                  fullWidth
+                                  placeholder="e.g. pdf,doc,docx,zip,rar"
+                                  value={question.fileTypes || ''}
+                                  onChange={(e) => {
+                                    const updatedSections = [...sections];
+                                    updatedSections[sectionIndex].questions[questionIndex].fileTypes = e.target.value;
+                                    onSectionsChange(updatedSections);
+                                  }}
+                                  helperText="Comma-separated list of allowed file extensions"
+                                />
+                              </Grid>
+                            )}
+                          </Grid>
+                        </AccordionDetails>
+                      </Accordion>
+                    </Box>
                   ))
                 )}
               </Box>

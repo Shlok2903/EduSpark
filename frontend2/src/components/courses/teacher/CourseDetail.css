@@ -18,12 +18,13 @@
 .course-header-title {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 1rem;
   margin-bottom: 1rem;
 }
 
 .course-title {
   font-weight: 600;
+  margin-right: auto;
 }
 
 .course-info {

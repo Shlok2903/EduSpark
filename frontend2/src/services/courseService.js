@@ -47,26 +47,7 @@ const courseService = {
   },
   
   // Update an existing course
-  updateCourse: (courseId, courseData) => {
-    const formData = new FormData();
-    
-    // Only add the required fields: title, description (optional), isOptional, deadline, courseImage
-    const requiredFields = ['title', 'description', 'isOptional', 'deadline', 'courseImage'];
-    
-    // Append only the required form data
-    requiredFields.forEach(key => {
-      if (key === 'courseImage' && courseData[key]) {
-        formData.append('courseImage', courseData[key]);
-      } else if (courseData[key] !== null && courseData[key] !== undefined) {
-        // For boolean values, ensure they're sent as strings
-        if (typeof courseData[key] === 'boolean') {
-          formData.append(key, courseData[key].toString());
-        } else {
-          formData.append(key, courseData[key]);
-        }
-      }
-    });
-    
+  updateCourse: (courseId, formData) => {
     return api.put(`/courses/${courseId}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data'

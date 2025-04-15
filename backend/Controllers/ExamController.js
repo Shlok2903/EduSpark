@@ -1,4 +1,4 @@
-const { Exam, ExamAttempt, Course, User } = require('../Models');
+const { Exam, ExamAttempt, Course, User, Enrollment } = require('../Models');
 const mongoose = require('mongoose');
 const path = require('path');
 const fs = require('fs');
@@ -857,5 +857,110 @@ exports.updatePublishStatus = async (req, res) => {
   } catch (error) {
     console.error('Error in updatePublishStatus:', error);
     return res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Get all exams for a user's enrolled courses (student view)
+exports.getUserExams = async (req, res) => {
+  try {
+    const userId = req.params.userId || req.user.id;
+    
+    // Get user's enrolled courses
+    const enrollments = await Enrollment.find({
+      userId,
+      isEnrolled: true
+    }).select('courseId');
+    
+    if (!enrollments.length) {
+      return res.status(200).json({
+        success: true,
+        message: 'User is not enrolled in any courses',
+        data: {
+          upcoming: [],
+          live: [],
+          completed: []
+        }
+      });
+    }
+    
+    // Extract course IDs
+    const courseIds = enrollments.map(enrollment => enrollment.courseId);
+    
+    // Find all published exams for these courses
+    const exams = await Exam.find({
+      courseId: { $in: courseIds },
+      isPublished: true
+    }).populate('courseId', 'title')
+      .populate('createdBy', 'name email');
+    
+    // Find all attempts by this user
+    const attempts = await ExamAttempt.find({
+      userId,
+      examId: { $in: exams.map(exam => exam._id) }
+    });
+    
+    const now = new Date();
+    
+    // Filter exams into categories
+    const result = {
+      upcoming: [],
+      live: [],
+      completed: []
+    };
+    
+    exams.forEach(exam => {
+      const examObj = exam.toObject();
+      const attempt = attempts.find(a => a.examId.toString() === exam._id.toString());
+      
+      // Add attempt info if exists
+      if (attempt) {
+        examObj.attemptInfo = {
+          attemptId: attempt._id,
+          status: attempt.status,
+          startTime: attempt.startTime,
+          submittedAt: attempt.submittedAt,
+          totalMarksAwarded: attempt.totalMarksAwarded,
+          percentage: attempt.percentage
+        };
+      }
+      
+      // Categorize based on time and attempts
+      if (attempt && ['submitted', 'graded'].includes(attempt.status)) {
+        // Exam is completed by user
+        result.completed.push(examObj);
+      } else if (now < new Date(exam.startTime)) {
+        // Exam hasn't started yet
+        result.upcoming.push(examObj);
+      } else if (now >= new Date(exam.startTime) && now <= new Date(exam.endTime)) {
+        // Exam is currently live
+        result.live.push(examObj);
+      } else if (now > new Date(exam.endTime) && !attempt) {
+        // Missed exam (ended without attempt)
+        examObj.missed = true;
+        result.completed.push(examObj);
+      }
+    });
+    
+    // Sort exams by date
+    result.upcoming.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+    result.live.sort((a, b) => new Date(b.endTime) - new Date(a.endTime)); // Ending soonest first
+    result.completed.sort((a, b) => {
+      if (a.attemptInfo && b.attemptInfo) {
+        return new Date(b.attemptInfo.submittedAt) - new Date(a.attemptInfo.submittedAt);
+      }
+      return new Date(b.endTime) - new Date(a.endTime);
+    });
+    
+    return res.status(200).json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error in getUserExams:', error);
+    return res.status(500).json({ 
+      success: false,
+      message: 'Server error', 
+      error: error.message 
+    });
   }
 }; 

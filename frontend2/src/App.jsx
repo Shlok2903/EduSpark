@@ -22,6 +22,9 @@ import CreateExam from './components/exams/teacher/CreateExam';
 import StudentExams from './components/exams/student/StudentExams';
 import TakeExam from './components/exams/student/TakeExam';
 import ExamResult from './components/exams/student/ExamResult';
+import StrictModeQuiz from './components/exams/student/StrictModeQuiz';
+import FullScreenQuiz from './components/quizzes/student/FullScreenQuiz';
+import EditCourse from './components/courses/teacher/EditCourse';
 import './App.css';
 
 // Create a custom theme for Material UI components
@@ -175,7 +178,7 @@ function App() {
                 path="/dashboard/courses/edit/:courseId"
                 element={
                   <TeacherRoute>
-                    <div>Edit Course Page (Coming Soon)</div>
+                    <EditCourse />
                   </TeacherRoute>
                 }
               />
@@ -245,6 +248,34 @@ function App() {
                 }
               />
               
+              {/* Strict Mode Quiz/Exam Routes */}
+              <Route
+                path="/strict/quiz/:quizId"
+                element={
+                  <StudentRoute>
+                    <StrictModeQuiz />
+                  </StudentRoute>
+                }
+              />
+              
+              <Route
+                path="/strict/exam/:examId"
+                element={
+                  <StudentRoute>
+                    <StrictModeQuiz />
+                  </StudentRoute>
+                }
+              />
+              
+              <Route
+                path="/strict/exam/:examId/attempt/:attemptId"
+                element={
+                  <StudentRoute>
+                    <StrictModeQuiz />
+                  </StudentRoute>
+                }
+              />
+              
               <Route
                 path="/exams/result/:attemptId"
                 element={
@@ -279,6 +310,16 @@ function App() {
                   <ProtectedRoute>
                     <div>Results Page (Coming Soon)</div>
                   </ProtectedRoute>
+                }
+              />
+              
+              {/* Student Quiz Route */}
+              <Route
+                path="/courses/:courseId/quiz/:quizId"
+                element={
+                  <StudentRoute>
+                    <FullScreenQuiz />
+                  </StudentRoute>
                 }
               />
               

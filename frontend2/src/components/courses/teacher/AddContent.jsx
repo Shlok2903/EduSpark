@@ -25,7 +25,8 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
+  Grid
 } from '@mui/material';
 import { Add, Delete, Edit, ArrowBack, VideoLibrary, TextFields, Quiz as QuizIcon } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -66,6 +67,12 @@ function AddContent() {
   const [quizQuestions, setQuizQuestions] = useState([
     { question: '', options: ['', '', '', ''], correctOption: 0 }
   ]);
+  const [quizSettings, setQuizSettings] = useState({
+    timer: 0,
+    passingScore: 70,
+    maxAttempts: 0,
+    deadline: null
+  });
 
   // Fetch course and section data
   useEffect(() => {
@@ -171,6 +178,10 @@ function AddContent() {
     } else if (field.startsWith('option-')) {
       const optionIndex = parseInt(field.split('-')[1]);
       newQuestions[index].options[optionIndex] = value;
+    } else if (field === 'marks') {
+      // Ensure marks is a positive number
+      const numValue = parseInt(value) || 1;
+      newQuestions[index][field] = Math.max(1, numValue);
     }
     
     setQuizQuestions(newQuestions);
@@ -179,7 +190,7 @@ function AddContent() {
   const addQuestion = () => {
     setQuizQuestions([
       ...quizQuestions,
-      { question: '', options: ['', '', '', ''], correctOption: 0 }
+      { question: '', options: ['', '', '', ''], correctOption: 0, marks: 1 }
     ]);
   };
 
@@ -187,6 +198,19 @@ function AddContent() {
     const newQuestions = [...quizQuestions];
     newQuestions.splice(index, 1);
     setQuizQuestions(newQuestions);
+  };
+
+  const handleQuizOptionChange = (index, optionIndex, value) => {
+    const newQuestions = [...quizQuestions];
+    newQuestions[index].options[optionIndex] = value;
+    setQuizQuestions(newQuestions);
+  };
+
+  const handleQuizSettingChange = (setting, value) => {
+    setQuizSettings(prev => ({
+      ...prev,
+      [setting]: value
+    }));
   };
 
   const handleSaveContent = () => {
@@ -255,6 +279,12 @@ function AddContent() {
       };
       // Also include quizQuestions as a top-level property for compatibility
       moduleData.quizQuestions = quizQuestions;
+      
+      // Add quiz settings
+      moduleData.passingScore = quizSettings.passingScore;
+      moduleData.timer = quizSettings.timer;
+      moduleData.maxAttempts = quizSettings.maxAttempts;
+      moduleData.deadline = quizSettings.deadline;
     }
 
     console.log('Module data to be added:', moduleData);
@@ -591,6 +621,55 @@ function AddContent() {
           {contentType === CONTENT_TYPES.QUIZ && (
             <Box className="quiz-builder">
               <Typography variant="subtitle1" gutterBottom>
+                Quiz Settings
+              </Typography>
+              
+              <Grid container spacing={2} mb={3}>
+                <Grid item xs={12} sm={6} md={3}>
+                  <TextField
+                    label="Time Limit (minutes)"
+                    type="number"
+                    value={quizSettings.timer}
+                    onChange={(e) => handleQuizSettingChange('timer', parseInt(e.target.value) || 0)}
+                    fullWidth
+                    InputProps={{ inputProps: { min: 0 } }}
+                    helperText="0 means no time limit"
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <TextField
+                    label="Passing Score (%)"
+                    type="number"
+                    value={quizSettings.passingScore}
+                    onChange={(e) => handleQuizSettingChange('passingScore', parseInt(e.target.value) || 0)}
+                    fullWidth
+                    InputProps={{ inputProps: { min: 0, max: 100 } }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <TextField
+                    label="Max Attempts"
+                    type="number"
+                    value={quizSettings.maxAttempts}
+                    onChange={(e) => handleQuizSettingChange('maxAttempts', parseInt(e.target.value) || 0)}
+                    fullWidth
+                    InputProps={{ inputProps: { min: 0 } }}
+                    helperText="0 means unlimited attempts"
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <TextField
+                    label="Deadline"
+                    type="datetime-local"
+                    value={quizSettings.deadline || ''}
+                    onChange={(e) => handleQuizSettingChange('deadline', e.target.value)}
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+              </Grid>
+              
+              <Typography variant="subtitle1" gutterBottom>
                 Quiz Questions
               </Typography>
               
@@ -612,15 +691,30 @@ function AddContent() {
                       )}
                     </Box>
                     
-                    <TextField
-                      margin="dense"
-                      label="Question"
-                      fullWidth
-                      value={question.question}
-                      onChange={(e) => handleQuestionChange(qIndex, 'question', e.target.value)}
-                      required
-                      placeholder="Enter your question"
-                    />
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={9}>
+                        <TextField
+                          margin="dense"
+                          label="Question"
+                          fullWidth
+                          value={question.question}
+                          onChange={(e) => handleQuestionChange(qIndex, 'question', e.target.value)}
+                          required
+                          placeholder="Enter your question"
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={3}>
+                        <TextField
+                          margin="dense"
+                          label="Marks"
+                          type="number"
+                          fullWidth
+                          value={question.marks || 1}
+                          onChange={(e) => handleQuestionChange(qIndex, 'marks', e.target.value)}
+                          InputProps={{ inputProps: { min: 1 } }}
+                        />
+                      </Grid>
+                    </Grid>
                     
                     {question.options.map((option, oIndex) => (
                       <Box key={oIndex} className="option-row">

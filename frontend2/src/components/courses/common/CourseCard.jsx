@@ -45,7 +45,7 @@ const CourseCard = ({
           component="img"
           height="180"
           image={course.imageUrl}
-          alt={(course && course.title) || 'Course'}
+          alt={(course.title) || 'Course'}
           className="course-card-media"
         />
       ) : renderDefaultImage()}
@@ -98,7 +98,7 @@ const CourseCard = ({
         )}
         
         {action && (
-          <Box className="course-card-action" mt={2}>
+          <Box className="course-card-action">
             {action}
           </Box>
         )}

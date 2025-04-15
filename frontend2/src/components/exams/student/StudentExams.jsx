@@ -26,59 +26,57 @@ import {
   Check as CheckIcon,
   History as HistoryIcon,
   PlayArrow as StartIcon,
-  School as CourseIcon
+  School as CourseIcon,
+  Timer as DurationIcon,
+  CheckCircle as CompletedIcon,
+  TimerOff as EndedIcon,
+  EventAvailable as UpcomingIcon
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import examService from '../../../services/examService';
 import courseService from '../../../services/courseService';
 import enrollmentService from '../../../services/enrollmentService';
 import './StudentExams.css';
+import { handleError } from '../../../utils/notifications';
 
 const StudentExams = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [exams, setExams] = useState([]);
+  const [exams, setExams] = useState({
+    upcoming: [],
+    live: [],
+    completed: []
+  });
   const [activeTab, setActiveTab] = useState(0);
   const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [attempts, setAttempts] = useState([]);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchData();
+    fetchExams();
   }, []);
 
-  const fetchData = async () => {
+  const fetchExams = async () => {
     try {
       setLoading(true);
+      setError(null);
       
-      // Get enrolled courses
-      const coursesResponse = await enrollmentService.getUserEnrollments();
-      if (coursesResponse.data) {
-        setEnrolledCourses(coursesResponse.data);
+      const response = await examService.getUserExams();
+      
+      if (response.success) {
+        setExams(response.data || { upcoming: [], live: [], completed: [] });
         
-        // Get available exams for each enrolled course
-        const examPromises = coursesResponse.data.map(course => {
-          // Make sure we're using the correct string ID
-          const courseId = course.courseId && typeof course.courseId === 'object' 
-            ? course.courseId._id 
-            : (course.courseId || course._id);
-            
-          return examService.getExamsByCourse(courseId);
-        });
-        
-        const examResponses = await Promise.all(examPromises);
-        const allExams = examResponses.flat().filter(exam => exam && exam.isPublished);
-        
-        setExams(allExams);
-        
-        // Get user's exam attempts
-        const attemptsResponse = await examService.getMyAttempts();
-        if (attemptsResponse) {
-          setAttempts(attemptsResponse);
+        // If there are live exams, switch to that tab automatically
+        if (response.data.live && response.data.live.length > 0) {
+          setActiveTab(1); // Live exams tab
         }
+      } else {
+        setError(response.message || 'Failed to load exams');
       }
-    } catch (error) {
-      console.error('Failed to fetch data:', error);
-      toast.error('Could not load exams. Please try again.');
+    } catch (err) {
+      console.error('Error fetching exams:', err);
+      handleError('Failed to load exams');
+      setError('Failed to load exams. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -92,7 +90,7 @@ const StudentExams = () => {
     navigate(`/exams/take/${examId}`);
   };
 
-  const handleViewResult = (attemptId) => {
+  const handleViewResults = (attemptId) => {
     navigate(`/exams/result/${attemptId}`);
   };
 
@@ -123,152 +121,127 @@ const StudentExams = () => {
     return 'Unknown Course';
   };
 
-  const getExamStatus = (exam) => {
-    const examAttempts = attempts.filter(a => a.examId === exam._id || a.examId === exam.id);
-    
-    if (examAttempts.length === 0) {
-      return { status: 'not-attempted', label: 'Not Attempted' };
-    }
-    
-    const latestAttempt = examAttempts.sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt))[0];
-    
-    if (latestAttempt.status === 'completed') {
-      const isPassed = latestAttempt.score >= exam.passingMarks;
-      return { 
-        status: isPassed ? 'passed' : 'failed', 
-        label: isPassed ? 'Passed' : 'Failed',
-        attempt: latestAttempt
-      };
-    }
-    
-    return { status: 'in-progress', label: 'In Progress', attempt: latestAttempt };
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const getAvailableExams = () => {
-    return exams.filter(exam => {
-      const status = getExamStatus(exam);
-      return status.status === 'not-attempted' || status.status === 'failed';
-    });
+  const formatDuration = (minutes) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return hours > 0 ? `${hours}h ${mins}m` : `${mins} min`;
   };
 
-  const getCompletedExams = () => {
-    return exams.filter(exam => {
-      const status = getExamStatus(exam);
-      return status.status === 'passed';
-    });
-  };
-
-  const renderExamList = (examsToRender) => {
-    if (examsToRender.length === 0) {
-      return (
-        <Alert severity="info" sx={{ mt: 2 }}>
-          No exams available in this category.
-        </Alert>
-      );
-    }
-
+  const renderExamCard = (exam, category) => {
+    const now = new Date();
+    const startTime = new Date(exam.startTime);
+    const endTime = new Date(exam.endTime);
+    
     return (
-      <Grid container spacing={3} className="exams-grid">
-        {examsToRender.map(exam => {
-          const status = getExamStatus(exam);
-          
-          return (
-            <Grid item xs={12} md={6} lg={4} key={exam._id}>
-              <Card className={`exam-card ${status.status}`}>
-                <CardContent>
-                  <Box className="exam-header">
-                    <Typography variant="h6" className="exam-title">
-                      {exam.title}
-                    </Typography>
-                    <Chip 
-                      label={status.label}
-                      className={`status-chip ${status.status}`}
-                      size="small"
-                    />
-                  </Box>
-                  
-                  <Typography variant="body2" color="textSecondary" className="exam-description">
-                    {exam.description || 'No description provided'}
-                  </Typography>
-                  
-                  <Divider sx={{ my: 1.5 }} />
-                  
-                  <Box className="exam-details">
-                    <Box className="detail-item">
-                      <CourseIcon fontSize="small" />
-                      <Typography variant="body2">
-                        {getCourseName(exam.courseId)}
-                      </Typography>
-                    </Box>
-                    
-                    <Box className="detail-item">
-                      <TimeIcon fontSize="small" />
-                      <Typography variant="body2">
-                        {exam.duration} minutes
-                      </Typography>
-                    </Box>
-                    
-                    <Box className="detail-item">
-                      <AssignmentIcon fontSize="small" />
-                      <Typography variant="body2">
-                        {exam.totalMarks} marks
-                      </Typography>
-                    </Box>
-                    
-                    {exam.passingMarks > 0 && (
-                      <Box className="detail-item">
-                        <CheckIcon fontSize="small" />
-                        <Typography variant="body2">
-                          Pass: {exam.passingMarks} marks
-                        </Typography>
-                      </Box>
-                    )}
-                  </Box>
-                </CardContent>
-                <CardActions className="exam-actions">
-                  {status.status === 'not-attempted' || status.status === 'failed' ? (
-                    <Button 
-                      variant="contained" 
-                      color="primary"
-                      startIcon={<StartIcon />}
-                      onClick={() => handleStartExam(exam._id)}
-                      fullWidth
-                    >
-                      Start Exam
-                    </Button>
-                  ) : status.status === 'passed' ? (
-                    <Button
-                      variant="outlined"
-                      color="primary"
-                      startIcon={<HistoryIcon />}
-                      onClick={() => handleViewResult(status.attempt._id)}
-                      fullWidth
-                    >
-                      View Result
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="contained"
-                      color="secondary"
-                      startIcon={<StartIcon />}
-                      onClick={() => handleStartExam(exam._id)}
-                      fullWidth
-                    >
-                      Continue Exam
-                    </Button>
-                  )}
-                </CardActions>
-              </Card>
+      <Card className="exam-card" key={exam._id}>
+        <CardContent>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <Typography variant="h6" className="exam-title">
+                {exam.title}
+              </Typography>
+              <Typography variant="subtitle1" className="course-name">
+                <CourseIcon fontSize="small" /> 
+                {getCourseName(exam.courseId)}
+              </Typography>
             </Grid>
-          );
-        })}
-      </Grid>
+            
+            <Grid item xs={12}>
+              <Divider />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <Box className="exam-info">
+                <TimeIcon fontSize="small" />
+                <Typography variant="body2">
+                  {category === 'upcoming' 
+                    ? `Starts: ${formatDate(exam.startTime)}` 
+                    : `Ends: ${formatDate(exam.endTime)}`
+                  }
+                </Typography>
+              </Box>
+              
+              <Box className="exam-info">
+                <DurationIcon fontSize="small" />
+                <Typography variant="body2">
+                  Duration: {formatDuration(exam.duration)}
+                </Typography>
+              </Box>
+              
+              {exam.totalMarks && (
+                <Box className="exam-info">
+                  <Typography variant="body2">
+                    Total Marks: {exam.totalMarks}
+                  </Typography>
+                </Box>
+              )}
+              
+              {category === 'completed' && exam.attemptInfo && (
+                <Box className="exam-result">
+                  <Typography variant="body2" color={exam.attemptInfo.percentage >= 60 ? 'success.main' : 'error.main'}>
+                    Score: {Math.round(exam.attemptInfo.percentage)}% ({exam.attemptInfo.totalMarksAwarded}/{exam.totalMarks})
+                  </Typography>
+                </Box>
+              )}
+            </Grid>
+            
+            <Grid item xs={12} sm={6} className="exam-actions">
+              {category === 'upcoming' && (
+                <Chip 
+                  icon={<UpcomingIcon />}
+                  label={`Starts in ${Math.ceil((startTime - now) / (1000 * 60 * 60))} hours`}
+                  color="primary"
+                  variant="outlined"
+                />
+              )}
+              
+              {category === 'live' && (
+                <Button 
+                  variant="contained" 
+                  color="primary"
+                  startIcon={<StartIcon />}
+                  onClick={() => handleStartExam(exam._id)}
+                  fullWidth
+                >
+                  Start Exam
+                </Button>
+              )}
+              
+              {category === 'completed' && exam.attemptInfo && (
+                <Button 
+                  variant="outlined" 
+                  color="primary"
+                  onClick={() => handleViewResults(exam.attemptInfo.attemptId)}
+                  startIcon={<CompletedIcon />}
+                  fullWidth
+                >
+                  View Results
+                </Button>
+              )}
+              
+              {category === 'completed' && exam.missed && (
+                <Chip 
+                  icon={<EndedIcon />}
+                  label="Missed"
+                  color="error"
+                  variant="outlined"
+                />
+              )}
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
     );
   };
 
   return (
     <Box className="student-exams-container">
-      <Typography variant="h4" className="page-title">
+      <Typography variant="h5" className="page-title">
         My Exams
       </Typography>
       
@@ -277,59 +250,70 @@ const StudentExams = () => {
           <CircularProgress />
           <Typography>Loading exams...</Typography>
         </Box>
+      ) : error ? (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          {error}
+        </Alert>
       ) : (
-        <>
-          <Paper className="tabs-container">
-            <Tabs
-              value={activeTab}
+        <Box>
+          <Paper sx={{ mb: 2 }}>
+            <Tabs 
+              value={activeTab} 
               onChange={handleTabChange}
-              indicatorColor="primary"
-              textColor="primary"
               variant="fullWidth"
+              className="exam-tabs"
             >
-              <Tab label="Available Exams" />
-              <Tab label="Completed Exams" />
-              <Tab label="All Attempts" />
+              <Tab 
+                label={`Upcoming (${exams.upcoming?.length || 0})`} 
+                icon={<UpcomingIcon />}
+                iconPosition="start"
+              />
+              <Tab 
+                label={`Live Now (${exams.live?.length || 0})`} 
+                icon={<StartIcon />}
+                iconPosition="start"
+                className={exams.live?.length > 0 ? "live-tab" : ""}
+              />
+              <Tab 
+                label={`Completed (${exams.completed?.length || 0})`} 
+                icon={<CompletedIcon />}
+                iconPosition="start"
+              />
             </Tabs>
           </Paper>
           
           <Box className="exams-content">
-            {activeTab === 0 && renderExamList(getAvailableExams())}
-            {activeTab === 1 && renderExamList(getCompletedExams())}
-            {activeTab === 2 && (
-              <Box className="attempts-list-container">
-                {attempts.length === 0 ? (
-                  <Alert severity="info">
-                    You haven't attempted any exams yet.
-                  </Alert>
+            {activeTab === 0 && (
+              <Box>
+                {exams.upcoming && exams.upcoming.length > 0 ? (
+                  exams.upcoming.map(exam => renderExamCard(exam, 'upcoming'))
                 ) : (
-                  <List className="attempts-list">
-                    {attempts.map(attempt => (
-                      <ListItem
-                        key={attempt._id}
-                        button
-                        onClick={() => handleViewResult(attempt._id)}
-                        className={`attempt-item ${attempt.status}`}
-                      >
-                        <ListItemIcon>
-                          {attempt.status === 'completed' ? (
-                            <CheckIcon color="success" />
-                          ) : (
-                            <HistoryIcon color="action" />
-                          )}
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={attempt.examTitle || 'Unnamed Exam'}
-                          secondary={`Attempted on: ${new Date(attempt.startedAt).toLocaleString()} | Score: ${attempt.score || 'N/A'} | Status: ${attempt.status}`}
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
+                  <Alert severity="info">No upcoming exams.</Alert>
+                )}
+              </Box>
+            )}
+            
+            {activeTab === 1 && (
+              <Box>
+                {exams.live && exams.live.length > 0 ? (
+                  exams.live.map(exam => renderExamCard(exam, 'live'))
+                ) : (
+                  <Alert severity="info">No active exams at the moment.</Alert>
+                )}
+              </Box>
+            )}
+            
+            {activeTab === 2 && (
+              <Box>
+                {exams.completed && exams.completed.length > 0 ? (
+                  exams.completed.map(exam => renderExamCard(exam, 'completed'))
+                ) : (
+                  <Alert severity="info">No completed exams.</Alert>
                 )}
               </Box>
             )}
           </Box>
-        </>
+        </Box>
       )}
     </Box>
   );

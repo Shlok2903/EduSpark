@@ -1,101 +1,110 @@
 .student-courses-page {
-  padding: 24px;
-  max-width: 1400px;
-  margin: 0 auto;
+  padding: 20px;
 }
 
-.student-courses-page .header {
+.header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
 }
 
-.student-courses-page .page-title {
+.page-title {
+  font-size: 28px;
   font-weight: 600;
-  color: #37474F;
+  color: #333;
 }
 
-.student-courses-page .search-container {
-  width: 300px;
+.search-container {
+  max-width: 400px;
+  width: 100%;
 }
 
-.student-courses-page .search-container .MuiOutlinedInput-root {
-  border-radius: 8px;
+.search-container .MuiOutlinedInput-root {
+  border-radius: 30px;
   background-color: #f5f5f5;
 }
 
-.student-courses-page .search-container .MuiOutlinedInput-input {
-  padding: 12px 14px;
+.search-container .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline {
+  border-color: transparent;
 }
 
-.student-courses-page .notification-button {
-  width: 40px;
-  height: 40px;
+.search-container .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: #FDC886;
+}
+
+.search-container .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: #FDC886;
+}
+
+.notification-button {
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background-color: #f5f5f5;
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
   cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.student-courses-page .notification-button:hover {
-  background-color: #e0e0e0;
-}
-
-.student-courses-page .notification-button svg {
   color: #37474F;
+  transition: background-color 0.2s ease;
 }
 
-.student-courses-page .content-divider {
-  height: 1px;
-  background-color: #ECEFF1;
-  margin-bottom: 24px;
-}
-
-.student-courses-page .course-tabs {
-  margin-bottom: 24px;
-}
-
-.student-courses-page .course-tabs .MuiTab-root {
-  font-weight: 500;
-  text-transform: none;
-  padding: 8px 16px;
-  min-width: 120px;
-  color: #546E7A;
-}
-
-.student-courses-page .course-tabs .Mui-selected {
-  color: #37474F;
-  font-weight: 600;
-}
-
-.student-courses-page .course-tabs .MuiTabs-indicator {
+.notification-button:hover {
   background-color: #FDC886;
-  height: 3px;
+  color: white;
 }
 
-@media (max-width: 768px) {
-  .student-courses-page .header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
-  
-  .student-courses-page .search-container {
-    width: 100%;
-  }
-  
-  .student-courses-page .course-tabs .MuiTab-root {
-    min-width: 100px;
-    padding: 8px 12px;
-  }
+.content-divider {
+  height: 1px;
+  background-color: #e0e0e0;
+  margin-bottom: 24px;
+}
+
+.course-tabs {
+  margin-bottom: 24px;
+}
+
+.course-tabs .MuiTabs-indicator {
+  background-color: #FDC886;
+}
+
+.course-tabs .MuiTab-root {
+  text-transform: none;
+  font-weight: 500;
+  font-size: 16px;
+  color: #555;
+  min-width: 100px;
+}
+
+.course-tabs .MuiTab-root.Mui-selected {
+  color: #FDC886;
+}
+
+.course-card-wrapper {
+  height: 100%;
+  display: flex;
+}
+
+.course-card-wrapper .course-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
 }
 
 @media (max-width: 600px) {
-  .student-courses-page {
-    padding: 16px;
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .search-container {
+    margin-top: 16px;
+    max-width: 100%;
+  }
+  
+  .notification-button {
+    margin-top: 16px;
   }
 } 

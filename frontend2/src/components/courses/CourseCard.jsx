@@ -46,7 +46,7 @@ const CourseCard = ({
   };
 
   const handleEditCourse = () => {
-    navigate(`/dashboard/courses/${course.id}`);
+    navigate(`/dashboard/courses/edit/${course.id || course._id}`);
   };
 
   const handleViewCourse = () => {
