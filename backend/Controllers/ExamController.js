@@ -33,6 +33,17 @@ exports.createExam = async (req, res) => {
       return res.status(403).json({ message: 'You do not have permission to create exams for this course' });
     }
 
+    // Handle date strings properly
+    let parsedStartTime, parsedEndTime;
+    
+    try {
+      parsedStartTime = new Date(startTime);
+      parsedEndTime = new Date(endTime);
+    } catch (err) {
+      console.error('Error parsing date:', err);
+      return res.status(400).json({ message: 'Invalid date format' });
+    }
+
     // Create new exam
     const newExam = new Exam({
       title,
@@ -41,8 +52,8 @@ exports.createExam = async (req, res) => {
       createdBy: userId,
       sections: sections || [],
       duration,
-      startTime: new Date(startTime),
-      endTime: new Date(endTime),
+      startTime: parsedStartTime,
+      endTime: parsedEndTime,
       isPublished: isPublished || false
     });
 
@@ -158,8 +169,20 @@ exports.getExamById = async (req, res) => {
       }
     }
 
+    // Log the exam times for debugging
+    console.log('Sending exam times to client:', {
+      startTime: exam.startTime,
+      endTime: exam.endTime,
+      isTeacher
+    });
+
     return res.status(200).json({
-      exam,
+      exam: {
+        ...exam.toObject(),
+        // Ensure dates are in ISO format for consistent handling across timezones
+        startTime: exam.startTime.toISOString(),
+        endTime: exam.endTime.toISOString()
+      },
       isTeacher,
       attemptInfo
     });
@@ -571,9 +594,31 @@ exports.uploadFile = async (req, res) => {
       return res.status(404).json({ message: 'Question not found in this section' });
     }
 
+    // Get the question from the exam to verify it's a file question
+    const exam = await Exam.findById(attempt.examId);
+    if (!exam) {
+      return res.status(404).json({ message: 'Exam not found' });
+    }
+
+    const examSection = exam.sections.find(s => s._id.toString() === sectionId);
+    if (!examSection) {
+      return res.status(404).json({ message: 'Section not found in exam' });
+    }
+
+    const question = examSection.questions.find(q => q._id.toString() === questionId);
+    if (!question) {
+      return res.status(404).json({ message: 'Question not found in exam' });
+    }
+
+    // Check if it's a file or fileUpload type question
+    if (question.type !== 'file' && question.type !== 'fileUpload') {
+      return res.status(400).json({ message: 'Question does not accept file uploads' });
+    }
+
     // Update file path
     const filePath = req.file.path;
     attempt.sections[sectionIndex].answers[answerIndex].filePath = filePath;
+    attempt.sections[sectionIndex].answers[answerIndex].answer = req.file.originalname;
 
     await attempt.save();
 
@@ -1035,6 +1080,10 @@ exports.getUserExams = async (req, res) => {
           ['submitted', 'graded', 'timed-out'].includes(attempt.status) : false;
         examObj.attemptId = attempt ? attempt._id : null;
         examObj.timeRemaining = attempt ? attempt.timeRemaining : exam.duration * 60; // Convert duration to seconds
+        
+        // Convert dates to ISO strings for consistent handling
+        examObj.startTime = startTime.toISOString();
+        examObj.endTime = endTime.toISOString();
         
         // Check if the attempt's time has expired but status hasn't been updated
         const timeExpired = attempt && 

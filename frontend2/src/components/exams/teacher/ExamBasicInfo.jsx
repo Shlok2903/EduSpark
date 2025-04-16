@@ -69,7 +69,7 @@ const ExamBasicInfo = (props) => {
 
   const handleDateChange = (e) => {
     const { name, value } = e.target;
-    onExamDataChange(name, new Date(value));
+    onExamDataChange(name, value);
   };
 
   return (
@@ -203,7 +203,7 @@ const ExamBasicInfo = (props) => {
             name="startTime"
             label="Exam Start Date & Time"
             type="datetime-local"
-            value={examData.startTime ? new Date(examData.startTime).toISOString().slice(0, 16) : ''}
+            value={examData.startTime instanceof Date ? examData.startTime.toISOString().slice(0, 16) : typeof examData.startTime === 'string' ? examData.startTime.slice(0, 16) : ''}
             onChange={handleDateChange}
             fullWidth
             InputLabelProps={{
@@ -211,7 +211,7 @@ const ExamBasicInfo = (props) => {
             }}
             required
             error={!!displayErrors.startTime}
-            helperText={displayErrors.startTime || "When will the exam become available to students"}
+            helperText={displayErrors.startTime || "When the exam will become available to students"}
           />
         </Grid>
         
@@ -220,7 +220,7 @@ const ExamBasicInfo = (props) => {
             name="endTime"
             label="Exam End Date & Time"
             type="datetime-local"
-            value={examData.endTime ? new Date(examData.endTime).toISOString().slice(0, 16) : ''}
+            value={examData.endTime instanceof Date ? examData.endTime.toISOString().slice(0, 16) : typeof examData.endTime === 'string' ? examData.endTime.slice(0, 16) : ''}
             onChange={handleDateChange}
             fullWidth
             InputLabelProps={{
@@ -228,7 +228,7 @@ const ExamBasicInfo = (props) => {
             }}
             required
             error={!!displayErrors.endTime}
-            helperText={displayErrors.endTime || "When will the exam close for submissions"}
+            helperText={displayErrors.endTime || "When the exam will close for submissions"}
           />
         </Grid>
       </Grid>

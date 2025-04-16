@@ -124,9 +124,16 @@ const StudentExams = () => {
   const formatDate = (dateString) => {
     try {
       // Create a date object from the ISO string
+      // This will automatically convert to the user's local timezone
       const date = new Date(dateString);
       
-      // Format date and time with consistent timezone handling
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        console.error("Invalid date string:", dateString);
+        return "Invalid date";
+      }
+      
+      // Format date and time consistently in the user's local timezone
       return date.toLocaleString(undefined, {
         year: 'numeric',
         month: 'short',
@@ -136,7 +143,7 @@ const StudentExams = () => {
         hour12: true
       });
     } catch (error) {
-      console.error("Error formatting date:", error);
+      console.error("Error formatting date:", error, dateString);
       return "Invalid date";
     }
   };

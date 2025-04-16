@@ -35,6 +35,7 @@ const CreateExam = () => {
     passingMarks: 0,
     negativeMarking: false,
     status: 'draft',
+    isPublished: true,
     startTime: new Date(Date.now() + 24 * 60 * 60 * 1000), // Default to tomorrow
     endTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Default to a week from now
     sections: [
@@ -157,9 +158,8 @@ const CreateExam = () => {
         return;
       }
       
-      const finalExamData = {
-        ...examData
-      };
+      // Create a copy of exam data for submission
+      const finalExamData = { ...examData };
       
       const response = await examService.createExam(finalExamData);
       

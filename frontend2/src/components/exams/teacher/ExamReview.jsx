@@ -13,13 +13,21 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Alert
+  Alert,
+  FormControlLabel,
+  Switch
 } from '@mui/material';
 
 const ExamReview = ({ examData, courseInfo, totalMarks, onExamDataChange }) => {
   const handleStatusChange = (e) => {
     if (onExamDataChange) {
       onExamDataChange('status', e.target.value);
+    }
+  };
+  
+  const handlePublishChange = (e) => {
+    if (onExamDataChange) {
+      onExamDataChange('isPublished', e.target.checked);
     }
   };
 
@@ -110,6 +118,25 @@ const ExamReview = ({ examData, courseInfo, totalMarks, onExamDataChange }) => {
           </List>
         </Alert>
       )}
+      
+      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <FormControlLabel
+          control={
+            <Switch 
+              checked={examData.isPublished} 
+              onChange={handlePublishChange}
+              color="primary"
+              disabled={issues.length > 0}
+            />
+          }
+          label={examData.isPublished ? "Exam will be published" : "Exam will be saved as draft"}
+        />
+        {!examData.isPublished && (
+          <Typography variant="caption" color="warning.main">
+            Note: Students won't see the exam until you publish it
+          </Typography>
+        )}
+      </Box>
       
       <Paper elevation={0} sx={{ p: 2, mb: 3, bgcolor: '#f9f9f9', borderRadius: 2 }}>
         <Grid container spacing={2}>

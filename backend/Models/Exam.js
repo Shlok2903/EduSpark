@@ -5,7 +5,7 @@ const Schema = mongoose.Schema;
 const QuestionSchema = new Schema({
   type: {
     type: String,
-    enum: ['mcq', 'subjective', 'file'],
+    enum: ['mcq', 'subjective', 'file', 'fileUpload'],
     required: true
   },
   question: {
