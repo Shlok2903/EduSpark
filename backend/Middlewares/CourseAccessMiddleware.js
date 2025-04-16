@@ -1,4 +1,4 @@
-const { Course, Enrollment } = require('../Models');
+const { Course, Enrollment, Section, Module } = require('../Models');
 
 /**
  * Middleware to check if user is the course creator
@@ -6,7 +6,47 @@ const { Course, Enrollment } = require('../Models');
  */
 exports.isCreatorOrAdmin = async (req, res, next) => {
   try {
-    const courseId = req.params.courseId || req.body.courseId;
+    let courseId = req.params.courseId || req.body.courseId;
+    
+    // If we don't have a courseId but we have a sectionId, look up the section to get its courseId
+    if (!courseId && req.params.sectionId) {
+      // Check if sectionId is a valid MongoDB ObjectId
+      if (!req.params.sectionId || req.params.sectionId === 'undefined') {
+        return res.status(400).json({ message: 'Invalid section ID' });
+      }
+      
+      const section = await Section.findById(req.params.sectionId);
+      if (!section) {
+        return res.status(404).json({ message: 'Section not found' });
+      }
+      courseId = section.courseId;
+    }
+    
+    // If we don't have a courseId or sectionId but have a moduleId, look up the module to get its sectionId
+    if (!courseId && req.params.moduleId) {
+      // Check if moduleId is a valid MongoDB ObjectId
+      if (!req.params.moduleId || req.params.moduleId === 'undefined') {
+        return res.status(400).json({ message: 'Invalid module ID' });
+      }
+      
+      const module = await Module.findById(req.params.moduleId);
+      if (!module) {
+        return res.status(404).json({ message: 'Module not found' });
+      }
+      
+      // Now get the section to find the courseId
+      if (!module.sectionId || module.sectionId === 'undefined') {
+        return res.status(400).json({ message: 'Module has invalid section ID' });
+      }
+      
+      const section = await Section.findById(module.sectionId);
+      if (!section) {
+        return res.status(404).json({ message: 'Section not found' });
+      }
+      
+      courseId = section.courseId;
+    }
+    
     if (!courseId) {
       return res.status(400).json({ message: 'Course ID is required' });
     }
@@ -14,12 +54,13 @@ exports.isCreatorOrAdmin = async (req, res, next) => {
     // Handle both possible ID formats
     const userId = req.user.id || req.user._id;
     const isAdmin = req.user.isAdmin;
+    const isTutor = req.user.isTutor;
 
     console.log('User ID in middleware:', userId); // Debug
     console.log('User object:', req.user); // Debug
 
-    // If user is admin, allow access
-    if (isAdmin) {
+    // If user is admin or tutor, allow access
+    if (isAdmin || isTutor) {
       return next();
     }
 
@@ -52,7 +93,22 @@ exports.isCreatorOrAdmin = async (req, res, next) => {
  */
 exports.isEnrolledOrCreator = async (req, res, next) => {
   try {
-    const courseId = req.params.courseId || req.body.courseId;
+    let courseId = req.params.courseId || req.body.courseId;
+    
+    // If we don't have a courseId but we have a sectionId, look up the section to get its courseId
+    if (!courseId && req.params.sectionId) {
+      // Check if sectionId is a valid MongoDB ObjectId
+      if (!req.params.sectionId || req.params.sectionId === 'undefined') {
+        return res.status(400).json({ message: 'Invalid section ID' });
+      }
+      
+      const section = await Section.findById(req.params.sectionId);
+      if (!section) {
+        return res.status(404).json({ message: 'Section not found' });
+      }
+      courseId = section.courseId;
+    }
+    
     if (!courseId) {
       return res.status(400).json({ message: 'Course ID is required' });
     }
@@ -60,11 +116,12 @@ exports.isEnrolledOrCreator = async (req, res, next) => {
     // Handle both possible ID formats
     const userId = req.user.id || req.user._id;
     const isAdmin = req.user.isAdmin;
+    const isTutor = req.user.isTutor;
 
     console.log('User ID in enrollment middleware:', userId); // Debug
 
-    // If user is admin, allow access
-    if (isAdmin) {
+    // If user is admin or tutor, allow access
+    if (isAdmin || isTutor) {
       return next();
     }
 

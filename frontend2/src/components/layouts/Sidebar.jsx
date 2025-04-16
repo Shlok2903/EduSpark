@@ -52,6 +52,15 @@ function Sidebar() {
                     <HomeIcon sx={{ fontSize: 20 }} />
                     <span>Home</span>
                 </div>
+                
+                {/* Different course navigation for tutors vs students/admin */}
+                {isTutor && !isAdmin ? (
+                    <div className={`nav-item ${activeTab === '/courses' ? 'active' : ''}`} onClick={() => handleNavigation('/courses')}>
+                        <SchoolIcon sx={{ fontSize: 20 }} />
+                        <span>Manage Courses</span>
+                    </div>
+                ) : (
+                    <>
                 <div className={`nav-item ${activeTab === '/courses' ? 'active' : ''}`} onClick={() => handleNavigation('/courses')}>
                     <SchoolIcon sx={{ fontSize: 20 }} />
                     <span>Courses</span>
@@ -68,9 +77,11 @@ function Sidebar() {
                     <AssessmentIcon sx={{ fontSize: 20 }} />
                     <span>Results</span>
                 </div>
+                    </>
+                )}
                 
                 {/* Admin and Tutor specific options */}
-                {(isAdmin || isTutor) && (
+                {isAdmin && (
                     <>
                         <div className={`nav-item ${activeTab === '/dashboard/courses/add' ? 'active' : ''}`} onClick={() => handleNavigation('/dashboard/courses/add')}>
                             <AddCircleOutlineIcon sx={{ fontSize: 20 }} />
@@ -88,6 +99,14 @@ function Sidebar() {
                     <div className={`nav-item ${activeTab === '/admin-dashboard' ? 'active' : ''}`} onClick={() => handleNavigation('/admin-dashboard')}>
                         <DashboardIcon sx={{ fontSize: 20 }} />
                         <span>Admin Dashboard</span>
+                    </div>
+                )}
+                
+                {/* Tutor specific options */}
+                {isTutor && !isAdmin && (
+                    <div className={`nav-item ${activeTab === '/exams/manage' ? 'active' : ''}`} onClick={() => handleNavigation('/exams/manage')}>
+                        <LibraryBooksIcon sx={{ fontSize: 20 }} />
+                        <span>Manage Exams</span>
                     </div>
                 )}
             </nav>

@@ -99,6 +99,11 @@ function AddSections() {
       return;
     }
 
+    if (!sectionData.description) {
+      toast.error('Section description is required');
+      return;
+    }
+
     // Update or add section
     if (editIndex >= 0) {
       const updatedSections = [...sections];
@@ -298,13 +303,15 @@ function AddSections() {
           <TextField
             margin="dense"
             name="description"
-            label="Section Description (Optional)"
+            label="Section Description"
             fullWidth
             multiline
             rows={3}
             value={sectionData.description}
             onChange={handleChange}
+            required
             placeholder="Briefly describe what this section covers"
+            helperText="A clear description helps students understand the section's content"
           />
         </DialogContent>
         <DialogActions>

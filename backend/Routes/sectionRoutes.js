@@ -8,7 +8,7 @@ const { isCreatorOrAdmin, isEnrolledOrCreator } = require('../Middlewares/Course
 router.get('/courses/:courseId/sections', verifyToken, isEnrolledOrCreator, SectionController.getSectionsByCourseId);
 
 // Get a specific section by ID - requires enrollment or creator
-router.get('/sections/:sectionId', verifyToken, isEnrolledOrCreator, SectionController.getSectionById);
+router.get('/:sectionId', verifyToken, isEnrolledOrCreator, SectionController.getSectionById);
 
 // Create a new section for a course - requires creator or admin
 router.post('/courses/:courseId/sections', verifyToken, isCreatorOrAdmin, SectionController.createSection);
@@ -17,10 +17,10 @@ router.post('/courses/:courseId/sections', verifyToken, isCreatorOrAdmin, Sectio
 router.post('/sections/batch', verifyToken, SectionController.createSectionsBatch);
 
 // Update a section - requires creator or admin
-router.put('/sections/:sectionId', verifyToken, isCreatorOrAdmin, SectionController.updateSection);
+router.put('/:sectionId', verifyToken, isCreatorOrAdmin, SectionController.updateSection);
 
 // Delete a section - requires creator or admin
-router.delete('/sections/:sectionId', verifyToken, isCreatorOrAdmin, SectionController.deleteSection);
+router.delete('/:sectionId', verifyToken, isCreatorOrAdmin, SectionController.deleteSection);
 
 // Update sections order - requires creator or admin
 router.put('/courses/:courseId/sections/order', verifyToken, isCreatorOrAdmin, SectionController.updateSectionsOrder);

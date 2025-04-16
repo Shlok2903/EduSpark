@@ -45,7 +45,10 @@ import {
   Settings as SettingsIcon,
   PlayArrow as PlayArrowIcon
 } from '@mui/icons-material';
-import { courseService } from '../../../services/api';
+import { toast } from 'react-toastify';
+import courseService from '../../../services/courseService';
+import sectionService from '../../../services/sectionService';
+import moduleService from '../../../services/moduleService';
 import './CourseDetail.css';
 
 // Module type Icons by content type
@@ -153,7 +156,7 @@ const CourseDetail = () => {
   const handleOpenSectionDialog = (sectionId = null) => {
     if (sectionId) {
       // Edit mode
-      const section = course.sections.find(s => s.id === sectionId);
+      const section = course.sections.find(s => s._id === sectionId || s.id === sectionId);
       if (section) {
         setSectionData({
           title: section.title,
@@ -185,20 +188,58 @@ const CourseDetail = () => {
   
   // Module dialog handlers
   const handleOpenModuleDialog = (sectionId, moduleId = null) => {
+    console.log('Opening module dialog with sectionId:', sectionId);
+    if (!sectionId) {
+      toast.error('Section ID is required to add or edit modules');
+      return;
+    }
+    
     setCurrentSectionId(sectionId);
     
     if (moduleId) {
       // Edit mode
-      const section = course.sections.find(s => s.id === sectionId);
+      const section = course.sections.find(s => s._id === sectionId || s.id === sectionId);
       if (section) {
-        const module = section.modules.find(m => m.id === moduleId);
+        const module = section.modules.find(m => m._id === moduleId || m.id === moduleId);
         if (module) {
+          console.log('Module data for editing:', module);
+          
+          // Handle different content structures
+          let contentText = '';
+          let contentVideoUrl = '';
+          let contentQuizQuestions = [];
+          
+          if (typeof module.content === 'object' && module.content !== null) {
+            contentText = module.content.text || '';
+            contentVideoUrl = module.content.videoUrl || '';
+            contentQuizQuestions = module.content.quiz?.questions || [];
+          } else {
+            contentText = module.textContent || '';
+            contentVideoUrl = module.videoUrl || '';
+            contentQuizQuestions = module.quizQuestions || [];
+          }
+          
+          const moduleContentType = module.contentType || module.type || 'text';
+          
           setModuleData({
-            title: module.title,
+            title: module.title || '',
             description: module.description || '',
-            contentType: module.contentType,
-            content: module.content
+            contentType: moduleContentType,
+            content: {
+              text: contentText,
+              videoUrl: contentVideoUrl,
+              quiz: {
+                questions: contentQuizQuestions.length > 0 ? contentQuizQuestions : [{ 
+                  question: '', 
+                  options: [
+                    { text: '', isCorrect: false },
+                    { text: '', isCorrect: false }
+                  ] 
+                }]
+              }
+            }
           });
+          
           setIsEditingModule(true);
           setEditModuleId(moduleId);
         }
@@ -435,14 +476,19 @@ const CourseDetail = () => {
   // Save handlers
   const handleSaveSection = async () => {
     try {
+      if (!sectionData.title) {
+        toast.error('Section title is required');
+        return;
+      }
+
       if (isEditingSection) {
         // Update section
-        // TODO: Implement section update API call
-        console.log('Updating section:', editSectionId, sectionData);
+        await sectionService.updateSection(editSectionId, sectionData);
+        toast.success('Section updated successfully');
       } else {
         // Create section
-        // TODO: Implement section creation API call
-        console.log('Creating section:', sectionData);
+        await sectionService.createSection(courseId, sectionData);
+        toast.success('Section created successfully');
       }
       
       // Refresh course data
@@ -450,19 +496,61 @@ const CourseDetail = () => {
       handleCloseSectionDialog();
     } catch (error) {
       console.error('Error saving section:', error);
+      toast.error('Failed to save section: ' + (error.response?.data?.message || error.message));
     }
   };
   
   const handleSaveModule = async () => {
     try {
+      if (!moduleData.title) {
+        toast.error('Module title is required');
+        return;
+      }
+
+      // Check if section ID is available
+      if (!currentSectionId) {
+        toast.error('Section ID is missing. Please try again.');
+        handleCloseModuleDialog();
+        return;
+      }
+
+      // Validate content based on type
+      if (moduleData.contentType === 'video' && !moduleData.content.videoUrl) {
+        toast.error('Video URL is required');
+        return;
+      }
+
+      if (moduleData.contentType === 'text' && !moduleData.content.text) {
+        toast.error('Text content is required');
+        return;
+      }
+
+      // Create a clean module object for the API
+      const moduleToSave = {
+        title: moduleData.title,
+        description: moduleData.description,
+        contentType: moduleData.contentType
+      };
+
+      // Add the appropriate content field based on type
+      if (moduleData.contentType === 'text') {
+        moduleToSave.textContent = moduleData.content.text;
+      } else if (moduleData.contentType === 'video') {
+        moduleToSave.videoUrl = moduleData.content.videoUrl;
+      } else if (moduleData.contentType === 'quiz') {
+        moduleToSave.quizQuestions = moduleData.content.quiz.questions;
+      }
+
+      console.log('Saving module with data:', moduleToSave);
+
       if (isEditingModule) {
         // Update module
-        // TODO: Implement module update API call
-        console.log('Updating module:', editModuleId, moduleData);
+        await moduleService.updateModule(editModuleId, moduleToSave);
+        toast.success('Module updated successfully');
       } else {
         // Create module
-        // TODO: Implement module creation API call
-        console.log('Creating module in section:', currentSectionId, moduleData);
+        await moduleService.createModule(courseId, currentSectionId, moduleToSave);
+        toast.success('Module created successfully');
       }
       
       // Refresh course data
@@ -470,31 +558,52 @@ const CourseDetail = () => {
       handleCloseModuleDialog();
     } catch (error) {
       console.error('Error saving module:', error);
+      toast.error('Failed to save module: ' + (error.response?.data?.message || error.message));
     }
   };
   
   // Delete handlers
   const handleDeleteSection = async (sectionId) => {
+    if (!window.confirm('Are you sure you want to delete this section? All modules within this section will also be deleted.')) {
+      return;
+    }
+    
     try {
-      // TODO: Implement section deletion API call
-      console.log('Deleting section:', sectionId);
+      // Make sure sectionId is not undefined
+      if (!sectionId) {
+        toast.error('Invalid section ID');
+        return;
+      }
       
-      // Refresh course data
+      console.log('Deleting section:', sectionId);
+      await sectionService.deleteSection(sectionId);
+      toast.success('Section deleted successfully');
       fetchCourseDetails();
     } catch (error) {
       console.error('Error deleting section:', error);
+      toast.error('Failed to delete section: ' + (error.response?.data?.message || error.message));
     }
   };
   
   const handleDeleteModule = async (moduleId) => {
+    if (!window.confirm('Are you sure you want to delete this module?')) {
+      return;
+    }
+    
     try {
-      // TODO: Implement module deletion API call
-      console.log('Deleting module:', moduleId);
+      // Make sure moduleId is not undefined
+      if (!moduleId) {
+        toast.error('Invalid module ID');
+        return;
+      }
       
-      // Refresh course data
+      console.log('Deleting module:', moduleId);
+      await moduleService.deleteModule(moduleId);
+      toast.success('Module deleted successfully');
       fetchCourseDetails();
     } catch (error) {
       console.error('Error deleting module:', error);
+      toast.error('Failed to delete module: ' + (error.response?.data?.message || error.message));
     }
   };
   
@@ -638,7 +747,7 @@ const CourseDetail = () => {
                 
                 {course.sections && course.sections.length > 0 ? (
                   course.sections.map((section, index) => (
-                    <Accordion key={section.id || index} className="section-accordion">
+                    <Accordion key={section._id || section.id || index} className="section-accordion">
                       <AccordionSummary
                         expandIcon={<ExpandMoreIcon />}
                         className="section-header"
@@ -653,7 +762,7 @@ const CourseDetail = () => {
                             size="small"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleOpenSectionDialog(section.id);
+                              handleOpenSectionDialog(section._id || section.id);
                             }}
                             className="edit-button"
                           >
@@ -666,7 +775,7 @@ const CourseDetail = () => {
                             size="small"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDeleteSection(section.id);
+                              handleDeleteSection(section._id || section.id);
                             }}
                             className="delete-button"
                           >
@@ -678,11 +787,11 @@ const CourseDetail = () => {
                           {section.modules && section.modules.length > 0 ? (
                             section.modules.map((module, moduleIndex) => (
                               <ListItem
-                                key={module.id || moduleIndex}
+                                key={module._id || module.id || moduleIndex}
                                 className="module-item"
                               >
                                 <ListItemIcon>
-                                  <ModuleTypeIcon type={module.contentType} />
+                                  <ModuleTypeIcon type={module.contentType || module.type} />
                                 </ListItemIcon>
                                 <ListItemText 
                                   primary={module.title}
@@ -691,14 +800,14 @@ const CourseDetail = () => {
                                 <Box className="module-actions">
                                   <IconButton
                                     size="small"
-                                    onClick={() => handleOpenModuleDialog(section.id, module.id)}
+                                    onClick={() => handleOpenModuleDialog(section._id || section.id, module._id || module.id)}
                                   >
                                     <EditIcon fontSize="small" />
                                   </IconButton>
                                   <IconButton
                                     size="small"
                                     color="error"
-                                    onClick={() => handleDeleteModule(module.id)}
+                                    onClick={() => handleDeleteModule(module._id || module.id)}
                                   >
                                     <DeleteIcon fontSize="small" />
                                   </IconButton>
@@ -715,7 +824,7 @@ const CourseDetail = () => {
                         <Button
                           startIcon={<AddIcon />}
                           variant="outlined"
-                          onClick={() => handleOpenModuleDialog(section.id)}
+                          onClick={() => handleOpenModuleDialog(section._id || section.id)}
                           className="add-module-button"
                         >
                           Add Module

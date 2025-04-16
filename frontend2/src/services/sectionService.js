@@ -10,7 +10,7 @@ const sectionService = {
   
   // Get a specific section by ID with its modules
   getSectionById: (sectionId) => 
-    api.get(`/sections/sections/${sectionId}`),
+    api.get(`/sections/${sectionId}`),
   
   // Create a new section
   createSection: (courseId, sectionData) => 
@@ -40,11 +40,11 @@ const sectionService = {
   
   // Update a section
   updateSection: (sectionId, sectionData) => 
-    api.put(`/sections/sections/${sectionId}`, sectionData),
+    api.put(`/sections/${sectionId}`, sectionData),
   
   // Delete a section
   deleteSection: (sectionId) => 
-    api.delete(`/sections/sections/${sectionId}`),
+    api.delete(`/sections/${sectionId}`),
   
   // Update the order of sections
   updateSectionsOrder: (courseId, sectionsOrder) => 

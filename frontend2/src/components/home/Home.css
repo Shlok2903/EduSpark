@@ -89,6 +89,10 @@
 
 .dashboard-card {
   border-radius: 16px !important;
+  width: 250px;
+  align-items: center;
+  justify-content: center;
+  display: flex;  
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   height: 100%;

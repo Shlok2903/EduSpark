@@ -20,6 +20,7 @@ import { useNavigate } from 'react-router-dom';
 import { courseService } from '../../../services/api';
 import CourseCard from '../common/CourseCard';
 import './ManageCourses.css';
+import { toast } from 'react-toastify';
 
 const ManageCourses = () => {
   const [courses, setCourses] = useState([]);
@@ -65,7 +66,7 @@ const ManageCourses = () => {
   };
 
   const handleEditCourse = (courseId) => {
-    navigate(`/dashboard/courses/edit/${courseId}`);
+    navigate(`/dashboard/courses/${courseId}`);
   };
 
   const handleViewCourse = (courseId) => {
@@ -73,13 +74,17 @@ const ManageCourses = () => {
   };
 
   const handleDeleteCourse = async (courseId) => {
-    if (window.confirm('Are you sure you want to delete this course?')) {
+    if (window.confirm('Are you sure you want to delete this course? This action cannot be undone and will remove all sections, modules, and student enrollment data.')) {
       try {
+        setLoading(true);
         await courseService.deleteCourse(courseId);
+        toast.success('Course deleted successfully');
         fetchCourses(); // Refresh the list
       } catch (error) {
         console.error('Error deleting course:', error);
-        alert('Failed to delete course. Please try again.');
+        toast.error('Failed to delete course: ' + (error.response?.data?.message || error.message));
+      } finally {
+        setLoading(false);
       }
     }
   };

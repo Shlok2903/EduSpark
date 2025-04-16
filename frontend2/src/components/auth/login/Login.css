@@ -25,10 +25,16 @@
   left: 0;
   bottom: 0;
 }
-
-.plant-dark, .plant-light {
+.plant-dark{
   position: absolute;
   bottom: 0;
+  left: 260px;
+}
+
+.plant-light {
+  position: absolute;
+  bottom: 0;
+  left: 130px;
 }
 
 .login-right-illustration {

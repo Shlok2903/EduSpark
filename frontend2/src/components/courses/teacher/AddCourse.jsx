@@ -70,6 +70,18 @@ function AddCourse() {
       return;
     }
 
+    if (!courseData.description) {
+      toast.error('Please add a description for your course');
+      setLoading(false);
+      return;
+    }
+
+    if (!courseData.courseImage) {
+      toast.error('Please upload a thumbnail image for your course');
+      setLoading(false);
+      return;
+    }
+
     // Validate that deadline is set if course is not optional
     if (!courseData.isOptional && !courseData.deadline) {
       toast.error('Please set a deadline for required courses');
@@ -174,7 +186,9 @@ function AddCourse() {
                     onChange={handleChange}
                     multiline
                     rows={4}
+                    required
                     placeholder="Describe what students will learn in this course"
+                    helperText="A clear description helps students understand what they'll learn"
                   />
                 </Grid>
 

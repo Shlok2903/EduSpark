@@ -126,8 +126,9 @@ const deleteCourse = async (req, res) => {
     const { courseId } = req.params;
     const userId = req.user._id;
     const isAdmin = req.user.isAdmin;
+    const isTutor = req.user.isTutor;
     
-    await courseService.deleteCourse(courseId, userId, isAdmin);
+    await courseService.deleteCourse(courseId, userId, isAdmin, isTutor);
     
     res.status(200).json({
       success: true,
@@ -143,7 +144,7 @@ const deleteCourse = async (req, res) => {
       });
     }
     
-    if (error.message === 'You do not have permission to delete this course') {
+    if (error.message === 'Not authorized to delete this course') {
       return res.status(403).json({
         success: false,
         message: 'You do not have permission to delete this course'

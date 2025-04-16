@@ -252,9 +252,10 @@ const updateCourse = async (courseId, courseData, imageBuffer, userId, isAdmin, 
  * @param {string} courseId - Course ID to delete
  * @param {string} userId - User ID deleting the course
  * @param {boolean} isAdmin - Whether the user is an admin
+ * @param {boolean} isTutor - Whether the user is a tutor
  * @returns {Promise<Object>} Deletion result
  */
-const deleteCourse = async (courseId, userId, isAdmin) => {
+const deleteCourse = async (courseId, userId, isAdmin, isTutor) => {
   try {
     const course = await Course.findById(courseId);
     
@@ -262,8 +263,8 @@ const deleteCourse = async (courseId, userId, isAdmin) => {
       throw new Error('Course not found');
     }
     
-    // Check if user is creator or admin
-    if (course.createdBy.toString() !== userId && !isAdmin) {
+    // Check if user is creator, admin, or tutor
+    if (course.createdBy.toString() !== userId.toString() && !isAdmin && !isTutor) {
       throw new Error('Not authorized to delete this course');
     }
     

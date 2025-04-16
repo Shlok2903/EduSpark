@@ -213,95 +213,71 @@ function AddContent() {
     }));
   };
 
-  const handleSaveContent = () => {
-    // Validate
+  const handleSaveModule = () => {
+    // Validate module data
     if (!contentData.title) {
       toast.error('Module title is required');
       return;
     }
-    
+
+    if (!contentData.description) {
+      toast.error('Module description is required');
+      return;
+    }
+
+    // Validate content based on type
     if (contentType === CONTENT_TYPES.VIDEO && !contentData.url) {
       toast.error('Video URL is required');
       return;
     }
-    
+
     if (contentType === CONTENT_TYPES.TEXT && !contentData.content) {
       toast.error('Text content is required');
       return;
     }
-    
+
     if (contentType === CONTENT_TYPES.QUIZ) {
-      if (quizQuestions.length === 0) {
-        toast.error('At least one question is required');
-        return;
-      }
-      
-      // Validate questions
+      // Check if all questions are filled
       for (let i = 0; i < quizQuestions.length; i++) {
         const q = quizQuestions[i];
         if (!q.question) {
-          toast.error(`Question ${i + 1} is missing a question text`);
+          toast.error(`Question ${i+1} text is required`);
           return;
         }
-        
+
+        // Check if options are filled
         for (let j = 0; j < q.options.length; j++) {
           if (!q.options[j]) {
-            toast.error(`Question ${i + 1} is missing option ${j + 1}`);
+            toast.error(`Option ${j+1} for Question ${i+1} is required`);
             return;
           }
         }
       }
     }
 
-    // Create module object
-    const moduleData = {
+    // Create a new module object
+    const newModule = {
       title: contentData.title,
-      description: contentData.description || '',
-      type: contentType,
+      description: contentData.description,
+      type: contentType
     };
-    
-    // Add content based on type - store content in a structured way
+
+    // Add content based on type
     if (contentType === CONTENT_TYPES.VIDEO) {
-      moduleData.content = { 
-        url: contentData.url
-      };
-      // Also include videoUrl as a top-level property for compatibility
-      moduleData.videoUrl = contentData.url;
+      newModule.content = { url: contentData.url };
     } else if (contentType === CONTENT_TYPES.TEXT) {
-      moduleData.content = { 
-        text: contentData.content 
-      };
-      // Also include textContent as a top-level property for compatibility
-      moduleData.textContent = contentData.content;
+      newModule.content = { text: contentData.content };
     } else if (contentType === CONTENT_TYPES.QUIZ) {
-      moduleData.content = { 
-        questions: quizQuestions 
-      };
-      // Also include quizQuestions as a top-level property for compatibility
-      moduleData.quizQuestions = quizQuestions;
-      
-      // Add quiz settings
-      moduleData.passingScore = quizSettings.passingScore;
-      moduleData.timer = quizSettings.timer;
-      moduleData.maxAttempts = quizSettings.maxAttempts;
-      moduleData.deadline = quizSettings.deadline;
+      newModule.content = { questions: quizQuestions };
     }
 
-    console.log('Module data to be added:', moduleData);
-
-    // Update or add module
+    // Update module list
     if (editIndex >= 0) {
       const updatedModules = [...modules];
-      updatedModules[editIndex] = {
-        ...updatedModules[editIndex],
-        ...moduleData
-      };
+      updatedModules[editIndex] = newModule;
       setModules(updatedModules);
     } else {
-      setModules([
-        ...modules,
-        moduleData
-      ]);
+      setModules([...modules, newModule]);
     }
 
     handleCloseDialog();
@@ -568,11 +544,15 @@ function AddContent() {
             <TextField
               margin="dense"
               name="description"
-              label="Content Description (Optional)"
+              label="Content Description"
               fullWidth
+              multiline
+              rows={3}
               value={contentData.description}
               onChange={handleChange}
-              placeholder="Briefly describe what this content covers"
+              required
+              placeholder="Describe what this module covers"
+              helperText="A detailed description helps students understand this content's purpose"
             />
           </Box>
 
@@ -762,7 +742,7 @@ function AddContent() {
           <Button onClick={handleCloseDialog} color="primary">
             Cancel
           </Button>
-          <Button onClick={handleSaveContent} color="primary" variant="contained">
+          <Button onClick={handleSaveModule} color="primary" variant="contained">
             {editIndex >= 0 ? 'Update' : 'Add'} Content
           </Button>
         </DialogActions>
