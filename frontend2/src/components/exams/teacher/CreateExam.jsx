@@ -44,17 +44,20 @@ const CreateExam = () => {
         questions: []
       }
     ],
-    courseId: courseId
+    courseId: courseId || '' // Initialize with courseId from URL if available
   });
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    fetchCourseInfo();
-  }, [courseId]);
+    if (examData.courseId) {
+      fetchCourseInfo(examData.courseId);
+    }
+  }, [examData.courseId]);
 
-  const fetchCourseInfo = async () => {
+  const fetchCourseInfo = async (id) => {
     try {
       setLoading(true);
-      const response = await courseService.getCourseById(courseId);
+      const response = await courseService.getCourseById(id);
       if (response.data) {
         setCourseInfo(response.data);
       }
@@ -67,6 +70,41 @@ const CreateExam = () => {
   };
 
   const handleNext = () => {
+    // Validate required fields at step 0 (Basic Information)
+    if (activeStep === 0) {
+      const basicInfoErrors = {};
+      
+      if (!examData.duration || examData.duration <= 0) {
+        basicInfoErrors.duration = 'Duration is required and must be greater than 0';
+      }
+      
+      if (!examData.courseId) {
+        basicInfoErrors.courseId = 'Course selection is required';
+      }
+      
+      if (!examData.title || examData.title.trim() === '') {
+        basicInfoErrors.title = 'Exam title is required';
+      }
+      
+      if (!examData.startTime) {
+        basicInfoErrors.startTime = 'Start time is required';
+      }
+      
+      if (!examData.endTime) {
+        basicInfoErrors.endTime = 'End time is required';
+      } else if (examData.startTime && new Date(examData.endTime) <= new Date(examData.startTime)) {
+        basicInfoErrors.endTime = 'End time must be after start time';
+      }
+      
+      // Check if there are any errors
+      if (Object.keys(basicInfoErrors).length > 0) {
+        setErrors(basicInfoErrors);
+        toast.error('Please fill in all required fields correctly');
+        return;
+      }
+    }
+    
+    // Proceed to next step if validation passes
     setActiveStep((prevStep) => prevStep + 1);
   };
 
@@ -142,6 +180,8 @@ const CreateExam = () => {
           <ExamBasicInfo 
             examData={examData} 
             onExamDataChange={handleExamDataChange}
+            errors={errors}
+            setErrors={setErrors}
           />
         );
       case 1:
@@ -165,11 +205,11 @@ const CreateExam = () => {
     }
   };
 
-  if (loading && !courseInfo) {
+  if (loading && !courseInfo && activeStep === 0) {
     return (
       <Box className="loading-container">
         <CircularProgress />
-        <Typography>Loading course information...</Typography>
+        <Typography>Loading...</Typography>
       </Box>
     );
   }
@@ -177,7 +217,7 @@ const CreateExam = () => {
   return (
     <Box className="create-exam-container">
       <Typography variant="h4" className="page-title">
-        Create New Exam for {courseInfo?.title}
+        Create New Exam {courseInfo && `for ${courseInfo.title}`}
       </Typography>
       
       <Paper className="stepper-container">

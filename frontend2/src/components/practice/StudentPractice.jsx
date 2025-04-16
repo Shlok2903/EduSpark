@@ -183,23 +183,31 @@ const StudentPractice = ({ fullScreenMode = false, practiceId = null }) => {
   const fetchPracticeHistory = async () => {
     try {
       setLoadingHistory(true);
-      const response = await practiceService.getPracticeHistory();
-      console.log('Practice history response:', response);
       
-      // Check if response exists and has the expected format
-      if (response && Array.isArray(response)) {
-        setPracticeHistory(response);
-      } else if (response && response.data && Array.isArray(response.data)) {
-        // Handle case where data might be nested in a data property
-        setPracticeHistory(response.data);
+      // Clear existing history before fetching new data
+      setPracticeHistory([]);
+      
+      // Fetch practice history from server
+      const history = await practiceService.getPracticeHistory();
+      console.log('Practice history response:', history);
+      
+      if (!history) {
+        console.error('Failed to fetch practice history: No data returned');
+        toast.error("Could not load practice history");
+        return;
+      }
+      
+      // Ensure we have an array of history items
+      if (Array.isArray(history)) {
+        setPracticeHistory(history);
+      } else if (history.data && Array.isArray(history.data)) {
+        setPracticeHistory(history.data);
       } else {
-        console.error('Unexpected practice history format:', response);
-        setPracticeHistory([]);
+        console.error('Unexpected practice history format:', history);
         toast.error("Couldn't load practice history: unexpected data format");
       }
     } catch (error) {
       console.error("Failed to fetch practice history:", error);
-      setPracticeHistory([]);
       toast.error("Could not load your practice history");
     } finally {
       setLoadingHistory(false);
@@ -251,115 +259,206 @@ const StudentPractice = ({ fullScreenMode = false, practiceId = null }) => {
     }
   };
 
-  // If in fullScreenMode and practiceId is provided, load that practice automatically
+  // If in fullScreenMode and practiceId is provided from URL, load that practice automatically
   useEffect(() => {
     if (fullScreenMode && urlPracticeId) {
+      console.log("Auto-loading practice from URL param:", urlPracticeId);
       handleLoadPractice(urlPracticeId);
     }
   }, [fullScreenMode, urlPracticeId]);
 
-  const handleLoadPractice = async (practiceId) => {
-    if (!fullScreenMode) {
-      // If we're not in fullscreen mode, redirect to the fullscreen route
-      navigate(`/practice/${practiceId}`);
-      return;
-    }
-    
+  // Start the timer
+  const startTimer = async (practiceId) => {
     try {
-      setLoadingPractice(true);
-      
-      // Start the practice to initialize timer
+      // Only call the start practice API once to initialize/get timer
       const response = await practiceService.startPractice(practiceId);
-
-      if (response) {
-        setPractice(response);
-        setFullScreen(true);
-
-        // Initialize user answers object
-        const answers = {};
-        if (response.isCompleted) {
-          // If practice is already completed, use the saved answers
-          response.questions.forEach((q, index) => {
-            const optionIndex = q.options.findIndex(
-              (opt) => opt === q.userAnswer
-            );
-            answers[index] = optionIndex >= 0 ? optionIndex : null;
-          });
-          setPracticeComplete(true);
-          const score = Math.round(
-            (response.correctAnswers / response.questions.length) * 100
-          );
-          setScore(score);
-        } else {
-          // If practice is not completed, initialize empty answers
-          response.questions.forEach((q, index) => {
-            answers[index] = null;
-          });
-          setPracticeComplete(false);
-          setScore(null);
-          
-          // Set timer
-          const timerValue = response.timeRemaining || response.timeLimit || response.questions.length * 60;
-          console.log("Setting timer value:", timerValue);
-          setTimer(timerValue);
-          
-          // Start the timer
-          if (timerValue > 0) {
-            startTimer(response._id);
-          }
-        }
-
-        setUserAnswers(answers);
-        setActiveTab(0); // Switch to the quiz tab
+      console.log("Practice started:", response);
+      
+      if (!response) {
+        console.error("Failed to start practice: Invalid response");
+        toast.error("Could not start practice timer");
+        return;
       }
+      
+      // Check if practice has expired
+      if (response.timeExpired) {
+        console.log("Practice has expired, auto-submitting");
+        toast.info(response.message || "This practice has expired. Auto-submitting with current answers.");
+        
+        // Update practice state
+        setPractice(prev => ({
+          ...prev,
+          isCompleted: true,
+          timeExpired: true
+        }));
+        
+        // Auto-submit the practice
+        await handleSubmitPractice(true);
+        return;
+      }
+      
+      // Update practice with the returned data
+      setPractice(prevPractice => ({
+        ...prevPractice,
+        ...response
+      }));
+      
+      // Calculate time remaining based on start time and time limit
+      let timerValue;
+      const now = new Date();
+      const startTime = response.startTime ? new Date(response.startTime) : now;
+      const timeLimit = response.timeLimit || (response.questions?.length * 60);
+      
+      // If the quiz has a start time, calculate remaining time
+      if (response.startTime) {
+        const elapsedSeconds = Math.floor((now - startTime) / 1000);
+        timerValue = Math.max(0, timeLimit - elapsedSeconds);
+        
+        // If time has already expired, auto-submit
+        if (timerValue <= 0) {
+          console.log("Time already expired, auto-submitting");
+          setTimer(0);
+          handleSubmitPractice(true);
+          return;
+        }
+      } else {
+        // New practice, use full time limit
+        timerValue = timeLimit;
+      }
+      
+      console.log("Setting timer value:", timerValue);
+      setTimer(timerValue);
+      
+      // Clear any existing interval
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
+      
+      // Start the timer countdown WITHOUT sending constant API calls
+      timerIntervalRef.current = setInterval(() => {
+        setTimer(prevTimer => {
+          // When timer reaches zero, auto-submit
+          if (prevTimer <= 1) {
+            clearInterval(timerIntervalRef.current);
+            handleSubmitPractice(true);
+            return 0;
+          }
+          
+          return prevTimer - 1;
+        });
+      }, 1000);
+      
     } catch (error) {
-      console.error("Failed to load practice:", error);
-      toast.error("Could not load the selected practice quiz");
+      console.error("Error starting timer:", error);
+      toast.error("Failed to start practice timer");
+    }
+  };
+  
+  // Function to check if a practice is expired
+  const isPracticeExpired = (practice) => {
+    if (!practice || !practice.startTime) return false;
+    
+    const now = new Date();
+    const startTime = new Date(practice.startTime);
+    const timeLimit = practice.timeLimit || (practice.questions?.length * 60);
+    const endTime = new Date(startTime.getTime() + (timeLimit * 1000));
+    
+    // Return true only if the quiz has actually expired
+    return now > endTime;
+  };
+
+  // Function to calculate remaining time in seconds
+  const calculateRemainingTime = (practice) => {
+    if (!practice || !practice.startTime) return 0;
+    
+    const now = new Date();
+    const startTime = new Date(practice.startTime);
+    const timeLimit = practice.timeLimit || (practice.questions?.length * 60);
+    const endTime = new Date(startTime.getTime() + (timeLimit * 1000));
+    
+    return Math.max(0, Math.floor((endTime - now) / 1000));
+  };
+
+  // Update handleLoadPractice to redirect to full practice page when clicked from history
+  const handleLoadPractice = async (practiceId) => {
+    try {
+      // If we're not in fullscreen mode, redirect to the fullscreen route
+      if (!fullScreenMode) {
+        console.log("Redirecting to full practice page:", practiceId);
+        navigate(`/practice/${practiceId}`);
+        return;
+      }
+      
+      console.log("Loading practice:", practiceId);
+      setLoadingPractice(true);
+      setPractice(null);
+      
+      const practiceData = await practiceService.getPracticeById(practiceId);
+      console.log("Practice data loaded:", practiceData);
+      
+      if (!practiceData || !practiceData._id) {
+        console.error("Failed to load practice: Invalid response format", practiceData);
+        toast.error("Could not load practice. Please try again.");
+        return;
+      }
+      
+      // Initialize the practice state
+      setPractice(practiceData);
+      
+      // Initialize user answers object
+      const initialAnswers = {};
+      if (practiceData.questions && Array.isArray(practiceData.questions)) {
+        practiceData.questions.forEach((question, index) => {
+          if (question.userAnswer) {
+            initialAnswers[index] = practiceData.questions[index].options.indexOf(question.userAnswer);
+          }
+        });
+      } else {
+        console.error("Practice questions are not in expected format:", practiceData);
+        toast.error("Practice questions could not be loaded properly");
+        return;
+      }
+      
+      setUserAnswers(initialAnswers);
+      
+      // Check if already completed
+      if (practiceData.isCompleted) {
+        console.log("Practice is already completed, showing results");
+        setPracticeComplete(true);
+        setScore({
+          correct: practiceData.correctAnswers,
+          total: practiceData.questions.length,
+          percentage: (practiceData.correctAnswers / practiceData.questions.length) * 100,
+        });
+        return;
+      }
+      
+      // Check if practice time has expired but not marked as completed
+      if (!practiceData.isCompleted && practiceData.startTime && isPracticeExpired(practiceData)) {
+        console.log("Practice time has expired, auto-submitting");
+        toast.info("This practice session has expired. Auto-submitting with current answers.");
+        await handleSubmitPractice(true);
+        return;
+      }
+      
+      // Practice is still active, calculate remaining time and start timer
+      console.log("Practice is in progress, continuing with time remaining");
+      const remainingTime = calculateRemainingTime(practiceData);
+      if (remainingTime > 0) {
+        console.log(`${remainingTime} seconds remaining for this practice`);
+        toast.info(`You have ${formatTime(remainingTime)} remaining to complete this quiz`);
+      }
+      
+      // Start the timer
+      await startTimer(practiceId);
+      
+    } catch (error) {
+      console.error("Error loading practice:", error);
+      toast.error("Failed to load practice. Please try again.");
     } finally {
       setLoadingPractice(false);
     }
   };
-  
-  // Start the timer
-  const startTimer = (practiceId) => {
-    // Clear any existing interval
-    if (timerIntervalRef.current) {
-      clearInterval(timerIntervalRef.current);
-    }
-    
-    console.log("Starting timer for practice ID:", practiceId);
-    
-    // Create new timer interval
-    timerIntervalRef.current = setInterval(() => {
-      setTimer((prevTime) => {
-        console.log("Timer tick:", prevTime);
-        if (prevTime <= 0) {
-          clearInterval(timerIntervalRef.current);
-          handleSubmitPractice(true);
-          return 0;
-        }
-        
-        const newTime = prevTime - 1;
-        
-        // Save time to server every 30 seconds
-        if (newTime % 30 === 0) {
-          practiceService.updateTimeRemaining(practiceId, newTime)
-            .catch(err => console.error("Error updating time:", err));
-        }
-        
-        return newTime;
-      });
-    }, 1000);
-  };
-  
-  // Clean up timer on component unmount
-  useEffect(() => {
-    return () => {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-      }
-    };
-  }, []);
 
   const handleAnswerChange = (questionIndex, optionIndex) => {
     setUserAnswers({
@@ -370,68 +469,71 @@ const StudentPractice = ({ fullScreenMode = false, practiceId = null }) => {
 
   // Submit practice answers
   const handleSubmitPractice = async (autoSubmit = false) => {
-    if (!practice) return;
+    if (!practice || !practice._id) {
+      toast.error("No active practice to submit");
+      return;
+    }
 
     try {
-      // Check if we need to show the confirmation dialog
-      if (!autoSubmit && !showSubmitDialog) {
-        // Calculate if all questions are answered
-        const answeredCount = Object.values(userAnswers).filter(val => val !== null).length;
-        const allAnswered = answeredCount === practice.questions.length;
-        setAllQuestionsAnswered(allAnswered);
-        setShowSubmitDialog(true);
-        return;
-      }
-      
-      // Clear timer
+      setSubmitting(true);
+
+      // Stop the timer if it's running
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
       }
 
-      setSubmitting(true);
-      
       // Format answers for submission
       const formattedAnswers = Object.entries(userAnswers).map(([questionIndex, optionIndex]) => {
         const question = practice.questions[parseInt(questionIndex)];
+        const selectedOption = question.options[optionIndex];
+        
         return {
-          questionId: question._id,
-          answer: optionIndex !== null ? question.options[optionIndex] : null
+          questionId: question._id.toString(),
+          answer: selectedOption
         };
-      }).filter(a => a.answer !== null);
+      });
 
-      // Call API to submit answers
-      const response = await practiceService.submitPracticeAttempt(
-        practice._id,
-        formattedAnswers
-      );
+      console.log("Submitting practice answers:", {
+        practiceId: practice._id,
+        answers: formattedAnswers
+      });
 
-      console.log("Practice submission response:", response);
-      
-      // Update UI with results
-      setPractice(response);
+      // Submit answers to server
+      const result = await practiceService.submitPracticeAttempt(practice._id, formattedAnswers);
+      console.log("Practice submission result:", result);
+
+      if (!result) {
+        throw new Error("Failed to submit practice: No response from server");
+      }
+
+      // Update practice with results
+      setPractice(result);
       setPracticeComplete(true);
+
+      // Calculate and set score
+      const correctCount = result.correctAnswers || 0;
+      const totalQuestions = result.questions?.length || 1;
+      const percentage = (correctCount / totalQuestions) * 100;
       
-      // Calculate score
-      const score = Math.round(
-        (response.correctAnswers / response.questions.length) * 100
-      );
-      setScore(score);
-      
+      setScore({
+        correct: correctCount,
+        total: totalQuestions,
+        percentage: percentage
+      });
+
       // Show success message
-      toast.success(
-        autoSubmit 
-          ? "Time's up! Your practice has been submitted automatically." 
-          : "Practice submitted successfully!"
-      );
-      
-      // Display toast with score
-      setTimeout(() => {
-        toast.info(`You scored ${score}% (${response.correctAnswers}/${response.questions.length} correct)`);
-      }, 1000);
-      
+      if (autoSubmit) {
+        toast.info("Time's up! Your practice has been submitted automatically.");
+      } else {
+        toast.success("Practice submitted successfully!");
+      }
+
+      // Refresh practice history
+      fetchPracticeHistory();
     } catch (error) {
-      console.error("Failed to submit practice:", error);
-      toast.error("Failed to submit your practice answers. Please try again.");
+      console.error("Error submitting practice:", error);
+      toast.error("Failed to submit practice. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -492,6 +594,36 @@ const StudentPractice = ({ fullScreenMode = false, practiceId = null }) => {
     });
   }, [practiceHistory, historyFilters]);
 
+  // Determine the status of a practice item
+  const getPracticeStatus = (practice) => {
+    if (practice.isCompleted) {
+      return { status: 'completed', label: 'Completed', icon: <Check fontSize="small" color="success" /> };
+    }
+    
+    if (isPracticeExpired(practice)) {
+      return { status: 'expired', label: 'Expired', icon: <Timer fontSize="small" color="error" /> };
+    }
+    
+    return { status: 'in-progress', label: 'In Progress', icon: <PlayArrow fontSize="small" color="primary" /> };
+  };
+
+  // Format a practice item's completion time or remaining time
+  const formatPracticeTime = (practice) => {
+    if (practice.isCompleted) {
+      return `Completed: ${formatDate(practice.completedAt || practice.createdAt)}`;
+    }
+    
+    if (practice.startTime) {
+      const remainingTime = calculateRemainingTime(practice);
+      if (remainingTime <= 0) {
+        return "Time expired";
+      }
+      return `${formatTime(remainingTime)} remaining`;
+    }
+    
+    return `Created: ${formatDate(practice.createdAt)}`;
+  };
+
   // Render practice history
   const renderPracticeHistory = () => (
     <Box className="practice-history">
@@ -536,116 +668,132 @@ const StudentPractice = ({ fullScreenMode = false, practiceId = null }) => {
         </Box>
       ) : filteredPracticeHistory.length > 0 ? (
         <Grid container spacing={2}>
-          {filteredPracticeHistory.map((item) => (
-            <Grid item xs={12} sm={6} md={4} key={item._id}>
-              <Card 
-                elevation={2}
-                sx={{ 
-                  height: '100%',
-                  position: 'relative',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    transform: 'translateY(-4px)',
-                    boxShadow: 6
-                  }
-                }}
-              >
-                <CardContent sx={{ pb: 0 }}>
-                  <Box sx={{ 
-                    position: 'absolute', 
-                    top: 0, 
-                    right: 0, 
-                    background: item.isCompleted ? 
-                      `linear-gradient(135deg, ${
-                        item.correctAnswers / item.numberOfQuestions >= 0.8
-                          ? '#4caf50'
-                          : item.correctAnswers / item.numberOfQuestions >= 0.6
-                          ? '#ff9800'
-                          : '#f44336'
-                      } 50%, transparent 50%)` : 
-                      'none',
-                    width: '40px',
-                    height: '40px'
-                  }} />
-                  
-                  <Typography variant="h6" sx={{ mb: 1, pr: 4 }}>
-                    {item.title}
-                  </Typography>
-                  
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <School fontSize="small" sx={{ mr: 1, color: 'primary.main' }} />
-                    <Typography variant="body2">
-                      {getCourseName(item.courseId)}
+          {filteredPracticeHistory.map((item) => {
+            const status = getPracticeStatus(item);
+            return (
+              <Grid item xs={12} sm={6} md={4} key={item._id}>
+                <Card 
+                  elevation={2}
+                  onClick={() => handlePracticeItemClick(item._id)}
+                  sx={{ 
+                    height: '100%',
+                    position: 'relative',
+                    transition: 'all 0.3s ease',
+                    cursor: 'pointer',
+                    '&:hover': {
+                      transform: 'translateY(-4px)',
+                      boxShadow: 6
+                    }
+                  }}
+                >
+                  <CardContent sx={{ pb: 0 }}>
+                    <Box sx={{ 
+                      position: 'absolute', 
+                      top: 0, 
+                      right: 0, 
+                      background: item.isCompleted ? 
+                        `linear-gradient(135deg, ${
+                          item.correctAnswers / item.numberOfQuestions >= 0.8
+                            ? '#4caf50'
+                            : item.correctAnswers / item.numberOfQuestions >= 0.6
+                            ? '#ff9800'
+                            : '#f44336'
+                        } 50%, transparent 50%)` : 
+                        'none',
+                      width: '40px',
+                      height: '40px'
+                    }} />
+                    
+                    <Typography variant="h6" sx={{ mb: 1, pr: 4 }}>
+                      {item.title}
                     </Typography>
-                  </Box>
-                  
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <Help fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                    <Typography variant="body2">
-                      {item.numberOfQuestions} questions • {item.difficulty} difficulty
-                    </Typography>
-                  </Box>
-                  
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <AccessTime fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                    <Typography variant="body2">
-                      {item.isCompleted
-                        ? `Completed: ${formatDate(item.completedAt)}`
-                        : `Started: ${formatDate(item.createdAt)}`}
-                    </Typography>
-                  </Box>
-                  
-                  {item.isCompleted && (
-                    <Box sx={{ mt: 2, mb: 1 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                        <Typography variant="body2" fontWeight="medium">
-                          Score:
-                        </Typography>
-                        <Typography 
-                          variant="body2" 
-                          fontWeight="bold"
+                    
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <School fontSize="small" sx={{ mr: 1, color: 'primary.main' }} />
+                      <Typography variant="body2">
+                        {getCourseName(item.courseId)}
+                      </Typography>
+                    </Box>
+                    
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <Help fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                      <Typography variant="body2">
+                        {item.numberOfQuestions} questions • {item.difficulty} difficulty
+                      </Typography>
+                    </Box>
+                    
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <AccessTime fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
+                      <Typography variant="body2">
+                        {formatPracticeTime(item)}
+                      </Typography>
+                    </Box>
+                    
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      {status.icon}
+                      <Typography variant="body2" sx={{ ml: 1 }} color={
+                        status.status === 'completed' ? 'success.main' :
+                        status.status === 'expired' ? 'error.main' : 'primary.main'
+                      }>
+                        {status.label}
+                      </Typography>
+                    </Box>
+                    
+                    {item.isCompleted && (
+                      <Box sx={{ mt: 2, mb: 1 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                          <Typography variant="body2" fontWeight="medium">
+                            Score:
+                          </Typography>
+                          <Typography 
+                            variant="body2" 
+                            fontWeight="bold"
+                            color={
+                              item.correctAnswers / item.numberOfQuestions >= 0.8
+                                ? "success.main"
+                                : item.correctAnswers / item.numberOfQuestions >= 0.6
+                                ? "warning.main"
+                                : "error.main"
+                            }
+                          >
+                            {Math.round((item.correctAnswers / item.numberOfQuestions) * 100)}%
+                          </Typography>
+                        </Box>
+                        <LinearProgress 
+                          variant="determinate"
+                          value={(item.correctAnswers / item.numberOfQuestions) * 100}
                           color={
                             item.correctAnswers / item.numberOfQuestions >= 0.8
-                              ? "success.main"
+                              ? "success"
                               : item.correctAnswers / item.numberOfQuestions >= 0.6
-                              ? "warning.main"
-                              : "error.main"
+                              ? "warning"
+                              : "error"
                           }
-                        >
-                          {Math.round((item.correctAnswers / item.numberOfQuestions) * 100)}%
-                        </Typography>
+                          sx={{ height: 8, borderRadius: 4 }}
+                        />
                       </Box>
-                      <LinearProgress 
-                        variant="determinate"
-                        value={(item.correctAnswers / item.numberOfQuestions) * 100}
-                        color={
-                          item.correctAnswers / item.numberOfQuestions >= 0.8
-                            ? "success"
-                            : item.correctAnswers / item.numberOfQuestions >= 0.6
-                            ? "warning"
-                            : "error"
-                        }
-                        sx={{ height: 8, borderRadius: 4 }}
-                      />
-                    </Box>
-                  )}
-                </CardContent>
-                
-                <CardActions sx={{ justifyContent: 'flex-end', pt: 0 }}>
-                  <Button
-                    variant="outlined"
-                    color="primary"
-                    size="small"
-                    startIcon={item.isCompleted ? <Visibility /> : <PlayArrow />}
-                    onClick={() => handleLoadPractice(item._id)}
-                    disabled={loadingPractice}
-                  >
-                    {item.isCompleted ? "Review" : "Continue"}
-                  </Button>
-                </CardActions>
-              </Card>
-            </Grid>
-          ))}
+                    )}
+                  </CardContent>
+                  
+                  <CardActions sx={{ justifyContent: 'flex-end', pt: 0 }}>
+                    <Button
+                      variant="outlined"
+                      color={status.status === 'in-progress' ? 'primary' : 'secondary'}
+                      size="small"
+                      startIcon={status.status === 'in-progress' ? <PlayArrow /> : <Visibility />}
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent card click
+                        handlePracticeItemClick(item._id);
+                      }}
+                      disabled={loadingPractice}
+                    >
+                      {status.status === 'in-progress' ? "Continue" : "Review"}
+                    </Button>
+                  </CardActions>
+                </Card>
+              </Grid>
+            );
+          })}
         </Grid>
       ) : historyFilters.status !== 'all' || historyFilters.courseId !== 'all' ? (
         <Paper elevation={1} sx={{ p: 3, textAlign: 'center' }}>
@@ -796,139 +944,159 @@ const StudentPractice = ({ fullScreenMode = false, practiceId = null }) => {
 
   // Render the practice questions
   const renderPracticeQuestions = () => (
-    <Box className="practice-questions">
-      <Paper className="practice-header">
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={8}>
-            <Typography variant="h5">
-              Practice: {getCourseName(practice.courseId)}
+    <Box className="practice-questions-container">
+      {loadingPractice ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', my: 4 }}>
+          <CircularProgress size={60} thickness={4} />
+          <Typography variant="h6" sx={{ mt: 2 }}>
+            Loading practice...
+          </Typography>
+        </Box>
+      ) : !practice ? (
+        <Box sx={{ textAlign: 'center', my: 4 }}>
+          <Typography variant="h6" color="text.secondary">
+            No practice loaded. Please select from history or generate a new practice.
+          </Typography>
+        </Box>
+      ) : (
+        <Box>
+          {/* Practice header */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h5" component="h1" gutterBottom>
+              {practice.title}
             </Typography>
-            <Typography variant="body2" color="textSecondary">
-              {practice.questions.length} questions • {practice.difficulty}{" "}
-              difficulty
-            </Typography>
-          </Grid>
-          <Grid item xs={12} md={4} sx={{ textAlign: "right" }}>
-            <Chip
-              icon={<School />}
-              label={getCourseName(practice.courseId)}
-              color="primary"
-              variant="outlined"
-              sx={{ mr: 1 }}
-            />
-            {timer !== null && (
-              <Chip 
-                icon={<Timer />} 
-                label={formatTime(timer)}
-                color={timer < 60 ? "error" : timer < 180 ? "warning" : "primary"}
-                variant={timer < 60 ? "filled" : "outlined"}
-                sx={{ 
-                  fontSize: '1rem', 
-                  fontWeight: 'bold',
-                  height: 'auto', 
-                  padding: '10px',
-                  animation: timer < 60 ? 'pulse 1s infinite' : 'none'
-                }}
-              />
-            )}
-          </Grid>
-        </Grid>
-      </Paper>
-
-      {practice.questions.map((question, questionIndex) => (
-        <Card key={questionIndex} className="question-card">
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              {questionIndex + 1}. {question.question}
-            </Typography>
-
-            <FormControl component="fieldset" disabled={practiceComplete}>
-              <RadioGroup
-                value={
-                  userAnswers[questionIndex] !== null
-                    ? userAnswers[questionIndex].toString()
-                    : ""
-                }
-                onChange={(e) =>
-                  handleAnswerChange(questionIndex, parseInt(e.target.value))
-                }
-              >
-                {question.options.map((option, optionIndex) => (
-                  <FormControlLabel
-                    key={optionIndex}
-                    value={optionIndex.toString()}
-                    control={<Radio />}
-                    label={option}
-                    className={
-                      practiceComplete
-                        ? question.correctAnswer === option
-                          ? "correct-answer"
-                          : userAnswers[questionIndex] === optionIndex &&
-                            question.correctAnswer !== option
-                          ? "incorrect-answer"
-                          : ""
-                        : ""
-                    }
-                  />
-                ))}
-              </RadioGroup>
-            </FormControl>
-
-            {practiceComplete && (
-              <Box className="answer-feedback" mt={2}>
-                {question.correctAnswer ===
-                question.options[userAnswers[questionIndex]] ? (
-                  <Alert severity="success">Correct! Well done!</Alert>
-                ) : (
-                  <Alert severity="error">
-                    Incorrect. The correct answer is: {question.correctAnswer}
-                  </Alert>
-                )}
+            
+            {!practiceComplete && (
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Chip 
+                  icon={<Timer />} 
+                  label={formatTime(timer)}
+                  color={timer < 60 ? "error" : "default"}
+                  sx={{ 
+                    fontWeight: 'bold', 
+                    animation: timer < 60 ? 'pulse 1s infinite' : 'none',
+                    mr: 1
+                  }}
+                />
+                
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={() => handleSubmitPractice(false)}
+                  disabled={submitting}
+                  startIcon={<Check />}
+                >
+                  {submitting ? 'Submitting...' : 'Submit Answers'}
+                </Button>
               </Box>
             )}
-          </CardContent>
-        </Card>
-      ))}
-
-      {!practiceComplete ? (
-        <Button
-          variant="contained"
-          color="primary"
-          fullWidth
-          disabled={submitting}
-          onClick={() => handleSubmitPractice(false)}
-          className="submit-button"
-        >
-          {submitting ? <CircularProgress size={24} /> : "Submit Answers"}
-        </Button>
-      ) : (
-        <Card className="results-card">
-          <CardContent>
-            <Box textAlign="center">
-              <EmojiEvents color="primary" sx={{ fontSize: 60 }} />
-              <Typography variant="h5" gutterBottom>
-                Practice Complete!
-              </Typography>
-              <Typography variant="h4" color="primary" gutterBottom>
-                Your Score: {score}%
-              </Typography>
-              <Typography variant="body1" paragraph>
-                {score >= 80
-                  ? "Excellent job!"
-                  : score >= 60
-                  ? "Good effort! Keep practicing."
-                  : "You might want to review this material and try again."}
-              </Typography>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={handleNewPractice}
-              >
-                Practice Again
-              </Button>
-            </Box>
-          </CardContent>
-        </Card>
+          </Box>
+          
+          {/* Practice complete banner */}
+          {practiceComplete && score && (
+            <Paper 
+              elevation={0} 
+              sx={{ 
+                p: 2, 
+                mb: 3, 
+                backgroundColor: score.percentage >= 70 ? 'rgba(76, 175, 80, 0.1)' : 'rgba(255, 152, 0, 0.1)',
+                border: `1px solid ${score.percentage >= 70 ? '#4caf50' : '#ff9800'}`,
+                borderRadius: 2
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="h6" gutterBottom>
+                    Practice Complete!
+                  </Typography>
+                  <Typography>
+                    You scored <strong>{score.correct}</strong> out of <strong>{score.total}</strong> ({Math.round(score.percentage)}%)
+                  </Typography>
+                </Box>
+                
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  onClick={handleNewPractice}
+                  startIcon={<Add />}
+                >
+                  New Practice
+                </Button>
+              </Box>
+            </Paper>
+          )}
+          
+          {/* Questions list */}
+          {practice.questions?.map((question, questionIndex) => (
+            <Card 
+              key={question._id} 
+              className="question-card"
+              sx={{ 
+                mb: 3, 
+                borderLeft: practiceComplete && question.isCorrect !== undefined 
+                  ? (question.isCorrect ? '4px solid #4caf50' : '4px solid #f44336') 
+                  : 'none',
+                backgroundColor: practiceComplete && question.isCorrect !== undefined
+                  ? (question.isCorrect ? 'rgba(76, 175, 80, 0.05)' : 'rgba(244, 67, 54, 0.05)')
+                  : 'white'
+              }}
+            >
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Question {questionIndex + 1}
+                </Typography>
+                
+                <Typography variant="body1" paragraph>
+                  {question.question}
+                </Typography>
+                
+                <FormControl component="fieldset" fullWidth>
+                  <RadioGroup
+                    value={userAnswers[questionIndex] !== undefined ? userAnswers[questionIndex] : ''}
+                    onChange={(e) => handleAnswerChange(questionIndex, parseInt(e.target.value))}
+                  >
+                    {question.options.map((option, optionIndex) => (
+                      <FormControlLabel
+                        key={optionIndex}
+                        value={optionIndex}
+                        control={<Radio />}
+                        label={option}
+                        disabled={practiceComplete}
+                        sx={{
+                          backgroundColor: practiceComplete && question.correctAnswer === option
+                            ? 'rgba(76, 175, 80, 0.1)'
+                            : (practiceComplete && userAnswers[questionIndex] === optionIndex && question.correctAnswer !== option
+                              ? 'rgba(244, 67, 54, 0.1)'
+                              : 'transparent'),
+                          p: 1,
+                          borderRadius: 1,
+                          mb: 0.5,
+                          '&:hover': {
+                            backgroundColor: practiceComplete ? 'inherit' : 'rgba(0, 0, 0, 0.05)'
+                          }
+                        }}
+                      />
+                    ))}
+                  </RadioGroup>
+                  
+                  {practiceComplete && (
+                    <Box sx={{ mt: 2, p: 2, backgroundColor: 'rgba(0, 0, 0, 0.03)', borderRadius: 1 }}>
+                      <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                        Correct Answer: {question.correctAnswer}
+                      </Typography>
+                      {/* Add explanation if available */}
+                      {question.explanation && (
+                        <Typography variant="body2">
+                          {question.explanation}
+                        </Typography>
+                      )}
+                    </Box>
+                  )}
+                </FormControl>
+              </CardContent>
+            </Card>
+          ))}
+        </Box>
       )}
     </Box>
   );
@@ -952,6 +1120,23 @@ const StudentPractice = ({ fullScreenMode = false, practiceId = null }) => {
         setFullScreen(false);
       }
     }
+  };
+
+  // Clean up timer on component unmount
+  useEffect(() => {
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // Handle clicking a practice history item
+  const handlePracticeItemClick = (practiceId) => {
+    console.log("Practice item clicked:", practiceId);
+    
+    // If we're not in fullscreen mode, navigate to the practice
+    navigate(`/practice/${practiceId}`);
   };
 
   // Main render with fullscreen support

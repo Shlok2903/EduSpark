@@ -129,6 +129,17 @@ const StrictModeQuiz = () => {
             // Handle specific error codes
             if (response.errorCode === 'ALREADY_COMPLETED') {
               setError('You have already completed this exam.');
+              
+              // If there are attempt details with a redirect URL, use it after a short delay
+              if (response.attemptDetails && response.attemptDetails.redirectUrl) {
+                toast.info('Redirecting you to your exam results...', {
+                  autoClose: 2000
+                });
+                
+                setTimeout(() => {
+                  navigate(response.attemptDetails.redirectUrl);
+                }, 2500);
+              }
             } else if (response.errorCode === 'EXAM_NOT_STARTED') {
               setError(`This exam hasn't started yet. It will be available from ${new Date(response.examStartTime).toLocaleString()}`);
             } else if (response.errorCode === 'EXAM_ENDED') {
@@ -590,18 +601,35 @@ const StrictModeQuiz = () => {
   }
   
   if (error) {
+    // If we have attempt details from an ALREADY_COMPLETED error, show view results button
+    const isAlreadyCompleted = error.includes('already completed');
+    
     return (
-      <Box className="strict-quiz-error">
-        <Alert severity="error" sx={{ mb: 2 }}>
+      <Box className="strict-quiz-error" sx={{ p: 3, maxWidth: '600px', mx: 'auto', textAlign: 'center' }}>
+        <Alert severity={isAlreadyCompleted ? "info" : "error"} sx={{ mb: 2 }}>
           {error}
         </Alert>
-        <Button 
-          variant="contained" 
-          color="primary" 
-          onClick={() => navigate(-1)}
-        >
-          Go Back
-        </Button>
+        
+        <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'center' }}>
+          {attempt && attempt._id && isAlreadyCompleted ? (
+            <Button 
+              variant="contained" 
+              color="primary" 
+              onClick={() => navigate(`/exams/result/${attempt._id}`)}
+              startIcon={<CheckIcon />}
+            >
+              View Results
+            </Button>
+          ) : null}
+          
+          <Button 
+            variant={isAlreadyCompleted ? "outlined" : "contained"} 
+            color="primary" 
+            onClick={() => navigate('/exams')}
+          >
+            Back to Exams
+          </Button>
+        </Box>
       </Box>
     );
   }

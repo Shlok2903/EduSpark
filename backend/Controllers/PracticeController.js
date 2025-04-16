@@ -192,6 +192,34 @@ const getPracticeById = async (req, res) => {
       return res.status(404).json({ message: "Practice session not found" });
     }
 
+    // Check if practice time has expired but not marked as completed
+    if (!practice.isCompleted && practice.startTime) {
+      const now = new Date();
+      const startTime = new Date(practice.startTime);
+      const timeLimit = practice.timeLimit;
+      const endTime = new Date(startTime.getTime() + (timeLimit * 1000));
+      
+      // If end time is in the past, practice has expired
+      if (now > endTime) {
+        // Mark as auto-completed due to time expiry
+        practice.isCompleted = true;
+        practice.completedAt = now;
+        practice.correctAnswers = practice.correctAnswers || 0;
+        await practice.save();
+        
+        return res.status(200).json({
+          ...practice.toObject(),
+          timeExpired: true,
+          message: "Practice time has expired"
+        });
+      }
+      
+      // Calculate remaining time
+      const remainingSeconds = Math.max(0, Math.floor((endTime - now) / 1000));
+      practice.timeRemaining = remainingSeconds;
+      await practice.save();
+    }
+
     // If practice is not completed yet, don't send correct answers
     let responseData;
     if (!practice.isCompleted) {
@@ -222,13 +250,29 @@ const getPracticeById = async (req, res) => {
 const getUserPractices = async (req, res) => {
   try {
     const userId = req.user.id;
+    console.log("Fetching practice history for user:", userId);
 
+    // Use lean() for better performance since we don't need instance methods
     const practices = await Practice.find({ userId })
       .populate("courseId", "title description")
       .sort({ createdAt: -1 })
-      .select("-questions");
+      .select("-questions")
+      .lean();
+    
+    console.log(`Found ${practices.length} practices for user ${userId}`);
+    
+    // Transform the result slightly to ensure consistent format
+    const transformedPractices = practices.map(practice => ({
+      ...practice,
+      _id: practice._id.toString(), // Ensure ID is a string
+      courseId: practice.courseId ? {
+        _id: practice.courseId._id?.toString(),
+        title: practice.courseId.title || 'Unknown Course',
+        description: practice.courseId.description || ''
+      } : null
+    }));
 
-    return res.status(200).json(practices);
+    return res.status(200).json(transformedPractices);
   } catch (error) {
     console.error("Error fetching user practices:", error);
     return res
@@ -316,7 +360,7 @@ const startPractice = async (req, res) => {
     }
 
     if (practice.isCompleted) {
-      return res.status(400).json({ message: "This practice session is already completed" });
+      return res.status(200).json(practice);
     }
 
     // Set the start time if not already set
@@ -326,8 +370,31 @@ const startPractice = async (req, res) => {
     } else {
       // If already started, calculate remaining time
       const now = new Date();
-      const elapsedSeconds = Math.floor((now - practice.startTime) / 1000);
-      practice.timeRemaining = Math.max(0, practice.timeLimit - elapsedSeconds);
+      const startTime = new Date(practice.startTime);
+      const timeLimit = practice.timeLimit;
+      
+      // Calculate when the practice should end
+      const endTime = new Date(startTime.getTime() + (timeLimit * 1000));
+      
+      // If end time is in the past, practice has expired
+      if (now > endTime) {
+        // Auto-complete practice if time has expired
+        practice.isCompleted = true;
+        practice.completedAt = now;
+        // Set minimum score in case no answers were submitted
+        practice.correctAnswers = practice.correctAnswers || 0;
+        await practice.save();
+        
+        return res.status(200).json({
+          ...practice.toObject(),
+          timeExpired: true,
+          message: "Practice time has expired"
+        });
+      }
+      
+      // Calculate remaining time in seconds
+      const remainingSeconds = Math.max(0, Math.floor((endTime - now) / 1000));
+      practice.timeRemaining = remainingSeconds;
       await practice.save();
     }
 

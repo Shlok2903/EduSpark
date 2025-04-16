@@ -334,10 +334,22 @@ exports.startExam = async (req, res) => {
 
     // If attempt exists and is submitted, don't allow retake
     if (existingAttempt && ['submitted', 'graded', 'timed-out'].includes(existingAttempt.status)) {
-      return res.status(403).json({
+      // Get the attempt details to provide more helpful information
+      const attemptDetails = await ExamAttempt.findById(existingAttempt._id)
+        .select('totalMarksAwarded percentage submittedAt status');
+      
+      return res.status(200).json({
         success: false,
         message: 'You have already completed this exam',
-        errorCode: 'ALREADY_COMPLETED'
+        errorCode: 'ALREADY_COMPLETED',
+        attemptDetails: {
+          _id: existingAttempt._id,
+          status: existingAttempt.status,
+          submittedAt: existingAttempt.submittedAt,
+          totalMarksAwarded: attemptDetails?.totalMarksAwarded,
+          percentage: attemptDetails?.percentage,
+          redirectUrl: `/exams/result/${existingAttempt._id}`
+        }
       });
     }
 
@@ -971,7 +983,13 @@ exports.getUserExams = async (req, res) => {
         examObj.timeRemaining = attempt ? attempt.timeRemaining : exam.duration * 60; // Convert duration to seconds
         
         // Categorize the exam
-        if (endTime < now) {
+        // If the student has submitted the exam, always put it in completed
+        if (examObj.studentSubmitted) {
+          examObj.status = 'completed';
+          completed.push(examObj);
+        }
+        // Otherwise categorize based on time
+        else if (endTime < now) {
           examObj.status = 'ended';
           completed.push(examObj);
         } else if (startTime <= now && endTime >= now) {

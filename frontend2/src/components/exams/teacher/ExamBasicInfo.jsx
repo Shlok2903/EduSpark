@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -7,13 +7,59 @@ import {
   Switch,
   Grid,
   Divider,
-  InputAdornment
+  InputAdornment,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Select,
+  FormHelperText
 } from '@mui/material';
+import courseService from '../../../services/courseService';
 
-const ExamBasicInfo = ({ examData, onExamDataChange }) => {
+const ExamBasicInfo = (props) => {
+  const {
+    examData,
+    onExamDataChange,
+    errors = {},
+    setErrors = () => {}
+  } = props;
+
+  // If there are already local errors, no need to redefine them
+  const [localErrors, setLocalErrors] = useState({});
+  const displayErrors = Object.keys(errors).length > 0 ? errors : localErrors;
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetchCourses();
+  }, []);
+
+  const fetchCourses = async () => {
+    try {
+      setLoading(true);
+      const response = await courseService.getTeacherCourses();
+      if (response.data) {
+        setCourses(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch courses:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     onExamDataChange(name, value);
+    
+    // Clear error for this field
+    if (displayErrors[name]) {
+      if (Object.keys(errors).length > 0) {
+        setErrors((prev) => ({ ...prev, [name]: undefined }));
+      } else {
+        setLocalErrors((prev) => ({ ...prev, [name]: undefined }));
+      }
+    }
   };
 
   const handleSwitchChange = (e) => {
@@ -47,7 +93,32 @@ const ExamBasicInfo = ({ examData, onExamDataChange }) => {
             fullWidth
             required
             placeholder="e.g. Midterm Exam"
+            error={!!displayErrors.title}
+            helperText={displayErrors.title}
           />
+        </Grid>
+        
+        <Grid item xs={12}>
+          <FormControl fullWidth error={!!displayErrors.courseId}>
+            <InputLabel id="course-select-label">Course</InputLabel>
+            <Select
+              labelId="course-select-label"
+              id="course-select"
+              name="courseId"
+              value={examData.courseId || ''}
+              onChange={handleInputChange}
+              label="Course"
+              required
+              disabled={loading}
+            >
+              {courses.map((course) => (
+                <MenuItem key={course._id} value={course._id}>
+                  {course.title}
+                </MenuItem>
+              ))}
+            </Select>
+            {displayErrors.courseId && <FormHelperText>{displayErrors.courseId}</FormHelperText>}
+          </FormControl>
         </Grid>
         
         <Grid item xs={12}>
@@ -89,6 +160,8 @@ const ExamBasicInfo = ({ examData, onExamDataChange }) => {
               inputProps: { min: 1 },
               endAdornment: <InputAdornment position="end">min</InputAdornment>
             }}
+            error={!!displayErrors.duration}
+            helperText={displayErrors.duration}
           />
         </Grid>
         
@@ -103,7 +176,8 @@ const ExamBasicInfo = ({ examData, onExamDataChange }) => {
             InputProps={{
               inputProps: { min: 0 }
             }}
-            helperText="Leave 0 for no passing threshold"
+            error={!!displayErrors.passingMarks}
+            helperText={displayErrors.passingMarks || "Leave 0 for no passing threshold"}
           />
         </Grid>
         
@@ -135,8 +209,9 @@ const ExamBasicInfo = ({ examData, onExamDataChange }) => {
             InputLabelProps={{
               shrink: true,
             }}
-            helperText="When will the exam become available to students"
             required
+            error={!!displayErrors.startTime}
+            helperText={displayErrors.startTime || "When will the exam become available to students"}
           />
         </Grid>
         
@@ -151,8 +226,9 @@ const ExamBasicInfo = ({ examData, onExamDataChange }) => {
             InputLabelProps={{
               shrink: true,
             }}
-            helperText="When will the exam close for submissions"
             required
+            error={!!displayErrors.endTime}
+            helperText={displayErrors.endTime || "When will the exam close for submissions"}
           />
         </Grid>
       </Grid>
