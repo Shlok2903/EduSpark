@@ -30,11 +30,11 @@ const examService = {
   
   // Get specific attempt
   getAttemptById: (attemptId) => 
-    api.get(`/exams/attempts/${attemptId}`),
+    api.get(`/exams/attempt/${attemptId}`),
   
   // Grade an attempt
   gradeAttempt: (attemptId, gradeData) => 
-    api.post(`/exams/attempts/${attemptId}/grade`, gradeData),
+    api.post(`/exams/attempt/${attemptId}/grade`, gradeData),
   
   // Update exam publish status
   publishExam: (examId, isPublished) => 

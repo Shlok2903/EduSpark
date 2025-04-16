@@ -264,117 +264,180 @@ exports.deleteExam = async (req, res) => {
   }
 };
 
-// Start an exam attempt for a student
+// Start an exam
 exports.startExam = async (req, res) => {
   try {
     const { examId } = req.params;
     const userId = req.user.id;
-    
-    console.log(`Starting exam attempt for exam: ${examId}, user: ${userId}`);
 
-    // Find exam
+    // Find the exam
     const exam = await Exam.findById(examId);
     if (!exam) {
-      console.log(`Exam not found: ${examId}`);
-      return res.status(404).json({ message: 'Exam not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Exam not found',
+        errorCode: 'EXAM_NOT_FOUND'
+      });
     }
-    
-    console.log(`Found exam: ${exam.title}`);
 
     // Check if exam is published
     if (!exam.isPublished) {
-      console.log(`Exam ${examId} is not published`);
-      return res.status(400).json({ message: 'This exam is not yet available', errorCode: 'NOT_PUBLISHED' });
+      return res.status(403).json({ 
+        success: false,
+        message: 'This exam is not available yet', 
+        errorCode: 'EXAM_NOT_PUBLISHED'
+      });
     }
 
-    // Check exam time constraints
+    // Check if exam has started and not ended
     const now = new Date();
-    console.log(`Current time: ${now.toISOString()}, Exam start: ${exam.startTime}, Exam end: ${exam.endTime}`);
-    
-    if (now < new Date(exam.startTime)) {
-      console.log(`Exam ${examId} has not started yet`);
-      return res.status(400).json({ 
-        message: 'This exam has not started yet', 
-        errorCode: 'NOT_STARTED',
-        startTime: exam.startTime
-      });
-    }
-    
-    if (now > new Date(exam.endTime)) {
-      console.log(`Exam ${examId} has already ended`);
-      return res.status(400).json({ 
-        message: 'This exam has already ended',
-        errorCode: 'ALREADY_ENDED', 
-        endTime: exam.endTime
+    const startTime = new Date(exam.startTime);
+    const endTime = new Date(exam.endTime);
+
+    if (now < startTime) {
+      return res.status(403).json({ 
+        success: false,
+        message: 'This exam has not started yet',
+        examStartTime: startTime,
+        errorCode: 'EXAM_NOT_STARTED'
       });
     }
 
-    // Check if student already has an attempt
-    const existingAttempt = await ExamAttempt.findOne({
-      userId,
-      examId
+    if (now > endTime) {
+      return res.status(403).json({ 
+        success: false,
+        message: 'This exam has already ended',
+        errorCode: 'EXAM_ENDED'
+      });
+    }
+
+    // Check if the user is enrolled in the course
+    const isEnrolled = await Enrollment.exists({ 
+      userId, 
+      courseId: exam.courseId,
+      isEnrolled: true
     });
 
-    if (existingAttempt) {
-      console.log(`Found existing attempt ${existingAttempt._id} with status ${existingAttempt.status}`);
-      
-      // If there's an existing attempt in progress, return it
-      if (existingAttempt.status === 'in-progress') {
-        return res.status(200).json({
-          message: 'Resuming existing exam attempt',
-          attempt: existingAttempt
-        });
-      }
-      
-      // If the attempt is already submitted or timed out
-      if (['submitted', 'timed-out', 'graded'].includes(existingAttempt.status)) {
-        console.log(`Attempt ${existingAttempt._id} already completed with status ${existingAttempt.status}`);
-        return res.status(400).json({ 
-          message: 'You have already completed this exam',
-          errorCode: 'ALREADY_COMPLETED',
-          attemptId: existingAttempt._id
-        });
-      }
+    if (!isEnrolled) {
+      return res.status(403).json({ 
+        success: false,
+        message: 'You are not enrolled in this course',
+        errorCode: 'NOT_ENROLLED'
+      });
     }
 
-    // Create sections for the attempt
-    const sections = exam.sections.map(section => ({
-      sectionId: section._id,
-      answers: section.questions.map(question => ({
-        questionId: question._id,
-        answer: null,
-        selectedOption: null,
-        filePath: null,
-        isGraded: false
-      })),
-      isCompleted: false
-    }));
-
-    // Create new attempt
-    const newAttempt = new ExamAttempt({
-      examId,
+    // Check if user has already completed this exam
+    const existingAttempt = await ExamAttempt.findOne({
       userId,
-      courseId: exam.courseId,
-      duration: exam.duration,
-      timeRemaining: exam.duration * 60, // Convert to seconds
+      examId,
+    }).populate('examId');
+
+    // If attempt exists and is submitted, don't allow retake
+    if (existingAttempt && ['submitted', 'graded', 'timed-out'].includes(existingAttempt.status)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You have already completed this exam',
+        errorCode: 'ALREADY_COMPLETED'
+      });
+    }
+
+    // If attempt exists and is in progress, return that attempt
+    if (existingAttempt && existingAttempt.status === 'in-progress') {
+      // Calculate remaining time
+      const elapsedSeconds = Math.floor((now - existingAttempt.startTime) / 1000);
+      const initialSeconds = exam.duration * 60; // Convert minutes to seconds
+      const remainingSeconds = Math.max(0, initialSeconds - elapsedSeconds);
+      
+      // Update timeRemaining field
+      existingAttempt.timeRemaining = remainingSeconds;
+      await existingAttempt.save();
+
+      // If time has expired, auto-submit the attempt
+      if (remainingSeconds <= 0) {
+        existingAttempt.status = 'timed-out';
+        existingAttempt.submittedAt = now;
+        await existingAttempt.save();
+        
+        return res.status(403).json({
+          success: false,
+          message: 'Your time for this exam has expired',
+          errorCode: 'TIME_EXPIRED'
+        });
+      }
+
+      // Fetch exam with questions
+      const fullExam = await Exam.findById(examId);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Continuing exam attempt',
+        attempt: {
+          _id: existingAttempt._id,
+          startTime: existingAttempt.startTime,
+          timeRemaining: remainingSeconds,
+          status: existingAttempt.status,
+          sections: existingAttempt.sections
+        },
+        exam: {
+          _id: fullExam._id,
+          title: fullExam.title,
+          duration: fullExam.duration,
+          totalMarks: fullExam.totalMarks,
+          sections: fullExam.sections,
+          endTime: fullExam.endTime
+        }
+      });
+    }
+
+    // Create a new attempt
+    const newAttempt = new ExamAttempt({
+      userId,
+      examId,
+      startTime: now,
       status: 'in-progress',
-      sections,
-      totalMarks: exam.totalMarks
+      timeRemaining: exam.duration * 60, // Convert minutes to seconds
+      sections: exam.sections.map(section => ({
+        sectionId: section._id,
+        answers: section.questions.map(question => ({
+          questionId: question._id,
+          answer: '',
+          selectedOption: null,
+          isGraded: false,
+          marksAwarded: 0
+        }))
+      }))
     });
 
     await newAttempt.save();
-    console.log(`Created new attempt ${newAttempt._id}`);
+
+    // Fetch exam with questions
+    const fullExam = await Exam.findById(examId);
 
     return res.status(201).json({
-      message: 'Exam attempt started successfully',
-      attempt: newAttempt
+      success: true,
+      message: 'Exam attempt started',
+      attempt: {
+        _id: newAttempt._id,
+        startTime: newAttempt.startTime,
+        timeRemaining: newAttempt.timeRemaining,
+        status: newAttempt.status,
+        sections: newAttempt.sections
+      },
+      exam: {
+        _id: fullExam._id,
+        title: fullExam.title,
+        duration: fullExam.duration,
+        totalMarks: fullExam.totalMarks,
+        sections: fullExam.sections,
+        endTime: fullExam.endTime
+      }
     });
   } catch (error) {
     console.error('Error in startExam:', error);
     return res.status(500).json({ 
+      success: false,
       message: 'Server error', 
-      error: error.message,
-      stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined
+      error: error.message 
     });
   }
 };
@@ -860,107 +923,81 @@ exports.updatePublishStatus = async (req, res) => {
   }
 };
 
-// Get all exams for a user's enrolled courses (student view)
+// Get all exams for a user's enrolled courses
 exports.getUserExams = async (req, res) => {
   try {
     const userId = req.params.userId || req.user.id;
     
-    // Get user's enrolled courses
-    const enrollments = await Enrollment.find({
-      userId,
-      isEnrolled: true
-    }).select('courseId');
+    // Get user's enrollments
+    const enrollments = await Enrollment.find({ userId });
+    const courseIds = enrollments.map(e => e.courseId);
     
-    if (!enrollments.length) {
-      return res.status(200).json({
-        success: true,
-        message: 'User is not enrolled in any courses',
-        data: {
-          upcoming: [],
-          live: [],
-          completed: []
-        }
-      });
-    }
-    
-    // Extract course IDs
-    const courseIds = enrollments.map(enrollment => enrollment.courseId);
-    
-    // Find all published exams for these courses
-    const exams = await Exam.find({
-      courseId: { $in: courseIds },
-      isPublished: true
-    }).populate('courseId', 'title')
-      .populate('createdBy', 'name email');
-    
-    // Find all attempts by this user
-    const attempts = await ExamAttempt.find({
-      userId,
-      examId: { $in: exams.map(exam => exam._id) }
-    });
-    
+    // Get current date
     const now = new Date();
     
-    // Filter exams into categories
-    const result = {
-      upcoming: [],
-      live: [],
-      completed: []
+    // Get all exams for these courses
+    const allExams = await Exam.find({ 
+      courseId: { $in: courseIds },
+      isPublished: true
+    })
+    .populate('courseId', 'title') // Just get the course title
+    .select('title description courseId duration startTime endTime totalMarks'); // Select only needed fields
+    
+    // Get all attempts by this user
+    const attempts = await ExamAttempt.find({ 
+      userId,
+      examId: { $in: allExams.map(exam => exam._id) }
+    })
+    .select('examId status startTime submittedAt timeRemaining');
+    
+    // Function to categorize exams
+    const categorizeExams = (exams, attempts) => {
+      const upcoming = [];
+      const live = [];
+      const completed = [];
+      
+      exams.forEach(exam => {
+        const examObj = exam.toObject();
+        const startTime = new Date(exam.startTime);
+        const endTime = new Date(exam.endTime);
+        
+        // Find if user has an attempt for this exam
+        const attempt = attempts.find(a => a.examId.toString() === exam._id.toString());
+        
+        // Add attempt information
+        examObj.studentStartedExam = !!attempt;
+        examObj.studentSubmitted = attempt ? attempt.status === 'submitted' || attempt.status === 'graded' : false;
+        examObj.attemptId = attempt ? attempt._id : null;
+        examObj.timeRemaining = attempt ? attempt.timeRemaining : exam.duration * 60; // Convert duration to seconds
+        
+        // Categorize the exam
+        if (endTime < now) {
+          examObj.status = 'ended';
+          completed.push(examObj);
+        } else if (startTime <= now && endTime >= now) {
+          examObj.status = 'live';
+          live.push(examObj);
+        } else {
+          examObj.status = 'upcoming';
+          upcoming.push(examObj);
+        }
+      });
+      
+      return { upcoming, live, completed };
     };
     
-    exams.forEach(exam => {
-      const examObj = exam.toObject();
-      const attempt = attempts.find(a => a.examId.toString() === exam._id.toString());
-      
-      // Add attempt info if exists
-      if (attempt) {
-        examObj.attemptInfo = {
-          attemptId: attempt._id,
-          status: attempt.status,
-          startTime: attempt.startTime,
-          submittedAt: attempt.submittedAt,
-          totalMarksAwarded: attempt.totalMarksAwarded,
-          percentage: attempt.percentage
-        };
-      }
-      
-      // Categorize based on time and attempts
-      if (attempt && ['submitted', 'graded'].includes(attempt.status)) {
-        // Exam is completed by user
-        result.completed.push(examObj);
-      } else if (now < new Date(exam.startTime)) {
-        // Exam hasn't started yet
-        result.upcoming.push(examObj);
-      } else if (now >= new Date(exam.startTime) && now <= new Date(exam.endTime)) {
-        // Exam is currently live
-        result.live.push(examObj);
-      } else if (now > new Date(exam.endTime) && !attempt) {
-        // Missed exam (ended without attempt)
-        examObj.missed = true;
-        result.completed.push(examObj);
-      }
-    });
-    
-    // Sort exams by date
-    result.upcoming.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
-    result.live.sort((a, b) => new Date(b.endTime) - new Date(a.endTime)); // Ending soonest first
-    result.completed.sort((a, b) => {
-      if (a.attemptInfo && b.attemptInfo) {
-        return new Date(b.attemptInfo.submittedAt) - new Date(a.attemptInfo.submittedAt);
-      }
-      return new Date(b.endTime) - new Date(a.endTime);
-    });
+    const categorizedExams = categorizeExams(allExams, attempts);
     
     return res.status(200).json({
       success: true,
-      data: result
+      data: categorizedExams
     });
   } catch (error) {
     console.error('Error in getUserExams:', error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: 'Server error', 
-      error: error.message 
+      message: 'Error fetching exams',
+      error: error.message
     });
   }
 }; 

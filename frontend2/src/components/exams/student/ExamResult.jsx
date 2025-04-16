@@ -30,6 +30,7 @@ const ExamResult = () => {
   const [loading, setLoading] = useState(true);
   const [attempt, setAttempt] = useState(null);
   const [exam, setExam] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchAttempt();
@@ -38,17 +39,22 @@ const ExamResult = () => {
   const fetchAttempt = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await examService.getAttemptById(attemptId);
       
       if (response.attempt && response.exam) {
         setAttempt(response.attempt);
         setExam(response.exam);
       } else {
-        toast.error('Could not load exam attempt');
+        const errorMsg = 'Could not load exam attempt data';
+        setError(errorMsg);
+        toast.error(errorMsg);
       }
     } catch (error) {
       console.error('Error fetching attempt:', error);
-      toast.error('Failed to load attempt. Please try again.');
+      const errorMsg = error.response?.data?.message || 'Failed to load attempt. Please try again.';
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -106,11 +112,11 @@ const ExamResult = () => {
     );
   }
 
-  if (!attempt || !exam) {
+  if (error || !attempt || !exam) {
     return (
       <Box className="error-container">
         <Alert severity="error">
-          Could not load exam result. Please try again.
+          {error || 'Could not load exam result. Please try again.'}
         </Alert>
         <Button 
           variant="contained" 

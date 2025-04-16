@@ -147,7 +147,7 @@ const StudentExams = () => {
               </Typography>
               <Typography variant="subtitle1" className="course-name">
                 <CourseIcon fontSize="small" /> 
-                {getCourseName(exam.courseId)}
+                {exam.courseId && exam.courseId.title ? exam.courseId.title : 'Unknown Course'}
               </Typography>
             </Grid>
             
@@ -181,10 +181,10 @@ const StudentExams = () => {
                 </Box>
               )}
               
-              {category === 'completed' && exam.attemptInfo && (
+              {exam.studentSubmitted && exam.percentage && (
                 <Box className="exam-result">
-                  <Typography variant="body2" color={exam.attemptInfo.percentage >= 60 ? 'success.main' : 'error.main'}>
-                    Score: {Math.round(exam.attemptInfo.percentage)}% ({exam.attemptInfo.totalMarksAwarded}/{exam.totalMarks})
+                  <Typography variant="body2" color={exam.percentage >= 60 ? 'success.main' : 'error.main'}>
+                    Score: {Math.round(exam.percentage)}% ({exam.totalMarksAwarded}/{exam.totalMarks})
                   </Typography>
                 </Box>
               )}
@@ -200,7 +200,7 @@ const StudentExams = () => {
                 />
               )}
               
-              {category === 'live' && (
+              {category === 'live' && !exam.studentStartedExam && (
                 <Button 
                   variant="contained" 
                   color="primary"
@@ -212,11 +212,23 @@ const StudentExams = () => {
                 </Button>
               )}
               
-              {category === 'completed' && exam.attemptInfo && (
+              {category === 'live' && exam.studentStartedExam && !exam.studentSubmitted && (
+                <Button 
+                  variant="contained" 
+                  color="secondary"
+                  startIcon={<StartIcon />}
+                  onClick={() => handleStartExam(exam._id)}
+                  fullWidth
+                >
+                  Continue Exam
+                </Button>
+              )}
+              
+              {category === 'live' && exam.studentSubmitted && (
                 <Button 
                   variant="outlined" 
                   color="primary"
-                  onClick={() => handleViewResults(exam.attemptInfo.attemptId)}
+                  onClick={() => handleViewResults(exam.attemptId)}
                   startIcon={<CompletedIcon />}
                   fullWidth
                 >
@@ -224,7 +236,19 @@ const StudentExams = () => {
                 </Button>
               )}
               
-              {category === 'completed' && exam.missed && (
+              {category === 'completed' && exam.studentSubmitted && (
+                <Button 
+                  variant="outlined" 
+                  color="primary"
+                  onClick={() => handleViewResults(exam.attemptId)}
+                  startIcon={<CompletedIcon />}
+                  fullWidth
+                >
+                  View Results
+                </Button>
+              )}
+              
+              {category === 'completed' && !exam.studentStartedExam && (
                 <Chip 
                   icon={<EndedIcon />}
                   label="Missed"

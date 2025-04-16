@@ -53,6 +53,14 @@ const StrictModeQuiz = () => {
   const [countdownVisible, setCountdownVisible] = useState(true);
   const timerRef = useRef(null);
   const isExam = !!examId;
+  const [exam, setExam] = useState(null);
+  const [attempt, setAttempt] = useState(null);
+  const [timeExpired, setTimeExpired] = useState(false);
+  const [sections, setSections] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState(null);
+  const saveTimeout = useRef(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Handle beforeunload event to warn user about leaving
   useEffect(() => {
@@ -74,165 +82,132 @@ const StrictModeQuiz = () => {
 
   // Fetch quiz or exam data on component mount
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchExam = async () => {
       try {
         setLoading(true);
-        let data;
+        setError(null);
         
-        if (isExam) {
-          // If we already have an attemptId, load existing attempt
-          if (attemptId) {
-            const response = await examService.getAttemptById(attemptId);
-            if (response.status === 'in-progress') {
-              data = response;
-              
-              // Calculate remaining time based on stored time
-              const now = new Date();
-              const startTime = new Date(response.startTime);
-              const duration = response.duration * 60; // convert minutes to seconds
-              const elapsedSeconds = Math.floor((now - startTime) / 1000);
-              const remainingTime = Math.max(0, response.timeRemaining || (duration - elapsedSeconds));
-              
-              // Store start time and total duration for accurate timer calculation on refresh
-              localStorage.setItem(`exam_timer_${attemptId}`, JSON.stringify({
-                startTime: startTime.getTime(),
-                duration: duration, 
-                timeRemaining: remainingTime,
-                lastSaved: now.getTime()
-              }));
-              
+        // If we have an attemptId from params, this is a direct access to an existing attempt
+        if (attemptId) {
+          const response = await examService.getAttemptById(attemptId);
+          if (response.attempt && response.exam) {
+            setExam(response.exam);
+            setAttempt(response.attempt);
+            
+            // Calculate remaining time based on saved time in attempt
+            const remainingTime = response.attempt.timeRemaining;
+            if (remainingTime <= 0) {
+              // Time has already expired
+              setTimeExpired(true);
+              submitExamOnTimeout();
+            } else {
               setTimeRemaining(remainingTime);
-              setInitialTime(response.duration * 60);
-              
-              // Load answered questions
-              const savedAnswers = {};
-              response.sections.forEach(section => {
-                section.answers.forEach(answer => {
-                  if (answer.selectedOption !== undefined) {
-                    savedAnswers[answer.questionId] = answer.selectedOption;
-                  }
-                });
-              });
-              setAnswers(savedAnswers);
-            } else {
-              // Attempt already completed
-              navigate(`/exams/result/${attemptId}`);
-              return;
             }
+            
+            initializeSections(response.exam, response.attempt);
           } else {
-            // Start a new exam attempt
-            const response = await examService.startExam(examId);
-            data = response;
-            
-            // Store time information for refreshes
-            const now = new Date();
-            const duration = response.duration * 60; // convert to seconds
-            
-            localStorage.setItem(`exam_timer_${response.attempt._id}`, JSON.stringify({
-              startTime: now.getTime(), 
-              duration: duration,
-              timeRemaining: duration,
-              lastSaved: now.getTime()
-            }));
-            
-            setTimeRemaining(duration);
-            setInitialTime(duration);
-            
-            // Redirect to the attempt-specific URL for better refresh handling
-            navigate(`/strict/exam/${examId}/attempt/${response.attempt._id}`, { replace: true });
-            return;
+            setError('Failed to load exam attempt. Please try again.');
           }
-        } else {
-          // For regular quizzes
-          const response = await examService.getQuizById(quizId);
-          data = response;
-          // Set time limit if applicable
-          if (data.timeLimit) {
-            setTimeRemaining(data.timeLimit * 60);
-            setInitialTime(data.timeLimit * 60);
+        } 
+        // Otherwise, it's a new attempt or continuation of an in-progress attempt
+        else {
+          const response = await examService.startExam(examId);
+          if (response.success) {
+            setExam(response.exam);
+            setAttempt(response.attempt);
             
-            // Check if there's a saved timestamp in localStorage
-            const savedTime = localStorage.getItem(`quiz_time_${quizId}`);
-            if (savedTime) {
-              const { timestamp, remainingSeconds } = JSON.parse(savedTime);
-              const now = new Date().getTime();
-              const elapsed = Math.floor((now - timestamp) / 1000);
-              const newRemaining = Math.max(0, remainingSeconds - elapsed);
-              setTimeRemaining(newRemaining);
+            // Set the timer based on returned remaining time
+            setTimeRemaining(response.attempt.timeRemaining);
+            
+            // Navigate to the attempt-specific URL (for bookmarking or refresh purposes)
+            if (response.attempt._id) {
+              navigate(`/strict/exam/${examId}/attempt/${response.attempt._id}`, { replace: true });
+            }
+            
+            initializeSections(response.exam, response.attempt);
+          } else {
+            // Handle specific error codes
+            if (response.errorCode === 'ALREADY_COMPLETED') {
+              setError('You have already completed this exam.');
+            } else if (response.errorCode === 'EXAM_NOT_STARTED') {
+              setError(`This exam hasn't started yet. It will be available from ${new Date(response.examStartTime).toLocaleString()}`);
+            } else if (response.errorCode === 'EXAM_ENDED') {
+              setError('This exam has already ended.');
+            } else if (response.errorCode === 'TIME_EXPIRED') {
+              setError('Your time for this exam has expired.');
             } else {
-              // Save the initial timestamp and time
-              saveTimeToLocalStorage();
+              setError(response.message || 'Failed to start exam. Please try again.');
             }
           }
         }
-        
-        setQuiz(data);
-      } catch (err) {
-        console.error('Error fetching quiz data:', err);
-        setError('Failed to load the quiz. Please try again later.');
+      } catch (error) {
+        console.error('Error fetching exam:', error);
+        const errorMsg = error.response?.data?.message || 'Error loading exam. Please try again.';
+        setError(errorMsg);
       } finally {
         setLoading(false);
       }
     };
-    
-    fetchData();
-    
-    // Clean up timer on unmount
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, [quizId, examId, attemptId, navigate, isExam]);
+
+    fetchExam();
+  }, [examId, attemptId]);
   
   // Start timer if timeRemaining is set
   useEffect(() => {
-    if (timeRemaining !== null && !submitted) {
+    if (timeRemaining > 0 && !loading && attempt) {
+      const updateTimerOnServer = async () => {
+        try {
+          await examService.updateTimeRemaining(attempt._id, timeRemaining);
+        } catch (error) {
+          console.error('Error updating time remaining:', error);
+        }
+      };
+
       timerRef.current = setInterval(() => {
         setTimeRemaining(prevTime => {
           const newTime = prevTime - 1;
           
-          // Save current time to localStorage or backend periodically
-          if (newTime % 10 === 0) { // save every 10 seconds
-            if (isExam && attemptId) {
-              // Update both backend and localStorage for exam attempts
-              examService.updateTimeRemaining(attemptId, newTime)
-                .catch(err => console.error('Error saving time:', err));
-              
-              // Update localStorage with the current remaining time
-              const now = new Date().getTime();
-              const timerData = JSON.parse(localStorage.getItem(`exam_timer_${attemptId}`) || '{}');
-              localStorage.setItem(`exam_timer_${attemptId}`, JSON.stringify({
-                ...timerData,
-                timeRemaining: newTime,
-                lastSaved: now
-              }));
-            } else {
-              saveTimeToLocalStorage(newTime);
-            }
+          // Update time on server every 30 seconds
+          if (newTime % 30 === 0) {
+            updateTimerOnServer();
           }
           
-          // Auto-submit when time runs out
+          // Time has expired
           if (newTime <= 0) {
-            if (timerRef.current) {
-              clearInterval(timerRef.current);
-            }
-            toast.error("Time's up! Your answers are being submitted automatically.");
-            handleSubmit();
+            clearInterval(timerRef.current);
+            setTimeExpired(true);
+            submitExamOnTimeout();
             return 0;
           }
           
           return newTime;
         });
       }, 1000);
+      
+      return () => {
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          
+          // Save time remaining when component unmounts
+          updateTimerOnServer();
+        }
+      };
     }
+  }, [timeRemaining, loading, attempt]);
+  
+  // Auto-submit exam when time expires
+  const submitExamOnTimeout = async () => {
+    if (!attempt) return;
     
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, [timeRemaining, submitted, isExam, attemptId]);
+    try {
+      await examService.submitExam(attempt._id);
+      toast.warning('Time expired! Your exam has been automatically submitted.');
+      navigate(`/exams/result/${attempt._id}`);
+    } catch (error) {
+      console.error('Error auto-submitting exam:', error);
+      toast.error('Failed to submit your answers. Please contact support.');
+    }
+  };
   
   // Save current time to localStorage for quizzes
   const saveTimeToLocalStorage = (currentRemaining = timeRemaining) => {
@@ -286,12 +261,142 @@ const StrictModeQuiz = () => {
     }
   }, [isExam, attemptId, answers, submitted, timeRemaining]);
   
-  // Handle answer selection
-  const handleAnswerChange = (questionId, optionIndex) => {
-    setAnswers(prev => ({
-      ...prev,
-      [questionId]: optionIndex
-    }));
+  // Initialize sections and questions from exam and attempt data
+  const initializeSections = (exam, attempt) => {
+    if (!exam || !exam.sections || !attempt) return;
+    
+    const sectionsData = [];
+    const answersMap = {};
+    
+    exam.sections.forEach(section => {
+      const sectionData = {
+        id: section._id,
+        title: section.title,
+        questions: []
+      };
+      
+      // Find corresponding section in attempt
+      const attemptSection = attempt.sections.find(s => s.sectionId === section._id);
+      
+      if (section.questions && section.questions.length > 0) {
+        section.questions.forEach(question => {
+          // Find corresponding answer in attempt
+          const answer = attemptSection?.answers.find(a => a.questionId === question._id);
+          
+          // Add question to section
+          sectionData.questions.push({
+            id: question._id,
+            question: question.question,
+            type: question.type,
+            options: question.options,
+            marks: question.marks
+          });
+          
+          // Store answer if it exists
+          if (answer) {
+            if (question.type === 'mcq' && answer.selectedOption !== null) {
+              answersMap[question._id] = answer.selectedOption;
+            } else if (question.type === 'subjective' && answer.answer) {
+              answersMap[question._id] = answer.answer;
+            }
+          }
+        });
+      }
+      
+      sectionsData.push(sectionData);
+    });
+    
+    setSections(sectionsData);
+    setAnswers(answersMap);
+  };
+
+  // Handle answer change and save progress
+  const handleAnswerChange = async (questionId, value) => {
+    setAnswers(prev => {
+      const newAnswers = { ...prev, [questionId]: value };
+      
+      // Debounce saving answers to avoid too many API calls
+      if (saveTimeout.current) {
+        clearTimeout(saveTimeout.current);
+      }
+      
+      saveTimeout.current = setTimeout(() => {
+        saveExamProgress(newAnswers);
+      }, 2000); // Wait 2 seconds after last change before saving
+      
+      return newAnswers;
+    });
+  };
+  
+  // Save exam progress to the server
+  const saveExamProgress = async (currentAnswers = answers) => {
+    if (!attempt || !exam) return;
+    
+    try {
+      setIsSaving(true);
+      
+      // Format data for saving
+      const sectionsData = sections.map(section => {
+        const sectionAnswers = section.questions.map(question => {
+          const answer = {
+            questionId: question.id,
+            selectedOption: null,
+            answer: ''
+          };
+          
+          if (question.type === 'mcq') {
+            answer.selectedOption = currentAnswers[question.id] !== undefined ? 
+              currentAnswers[question.id] : null;
+          } else {
+            answer.answer = currentAnswers[question.id] || '';
+          }
+          
+          return answer;
+        });
+        
+        return {
+          sectionId: section.id,
+          answers: sectionAnswers
+        };
+      });
+      
+      await examService.saveExamProgress(attempt._id, { sections: sectionsData });
+      setLastSaved(new Date());
+      toast.success('Progress saved', { autoClose: 1000 });
+    } catch (error) {
+      console.error('Error saving progress:', error);
+      toast.error('Failed to save progress');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  // Handle final submission
+  const handleSubmit = async () => {
+    if (!window.confirm('Are you sure you want to submit your exam? You cannot change your answers after submission.')) {
+      return;
+    }
+    
+    try {
+      setIsSubmitting(true);
+      
+      // Save answers one last time before submitting
+      await saveExamProgress();
+      
+      // Submit the exam
+      await examService.submitExam(attempt._id);
+      
+      toast.success('Exam submitted successfully!');
+      setSubmitted(true);
+      
+      // Navigate to results page
+      navigate(`/exams/result/${attempt._id}`);
+    } catch (error) {
+      console.error('Error submitting exam:', error);
+      toast.error('Failed to submit exam. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
   // Format time as HH:MM:SS
@@ -327,40 +432,6 @@ const StrictModeQuiz = () => {
   // Close confirm submission dialog
   const closeConfirmSubmit = () => {
     setConfirmSubmit(false);
-  };
-  
-  // Handle quiz submission
-  const handleSubmit = async () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-    
-    setConfirmSubmit(false);
-    
-    try {
-      setLoading(true);
-      
-      if (isExam) {
-        await examService.submitExam(attemptId);
-        navigate(`/exams/result/${attemptId}`);
-      } else {
-        // For regular quizzes
-        const result = await examService.submitQuiz(quizId, answers);
-        setQuiz(prev => ({
-          ...prev,
-          result
-        }));
-        setSubmitted(true);
-        
-        // Clear the saved time from localStorage
-        localStorage.removeItem(`quiz_time_${quizId}`);
-      }
-    } catch (err) {
-      console.error('Error submitting quiz:', err);
-      setError('Failed to submit. Please try again.');
-    } finally {
-      setLoading(false);
-    }
   };
   
   // Get question count
