@@ -67,7 +67,28 @@ const TakeExam = () => {
           // Auto-submit when time runs out
           if (newTime <= 0) {
             clearInterval(timer);
-            handleSubmitExam();
+            // Show time's up notification
+            toast.error("Time's up! Your exam is being submitted automatically.");
+            
+            // Auto-submit the exam and redirect to exams page
+            (async () => {
+              try {
+                await handleSubmitExam();
+                // We don't need to navigate here as handleSubmitExam already does that
+              } catch (error) {
+                console.error('Error auto-submitting exam:', error);
+                // If we couldn't submit via handleSubmitExam, try direct API call
+                try {
+                  await examService.submitExam(attempt._id);
+                  navigate('/exams');
+                } catch (secondError) {
+                  console.error('Second attempt to submit exam failed:', secondError);
+                  toast.error('Failed to submit your exam. Please try manually.');
+                }
+              }
+            })();
+            
+            return 0;
           }
           
           return newTime;

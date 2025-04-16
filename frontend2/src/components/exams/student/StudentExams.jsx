@@ -122,8 +122,23 @@ const StudentExams = () => {
   };
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    try {
+      // Create a date object from the ISO string
+      const date = new Date(dateString);
+      
+      // Format date and time with consistent timezone handling
+      return date.toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "Invalid date";
+    }
   };
 
   const formatDuration = (minutes) => {
@@ -236,25 +251,35 @@ const StudentExams = () => {
                 </Button>
               )}
               
-              {category === 'completed' && exam.studentSubmitted && (
-                <Button 
-                  variant="outlined" 
-                  color="primary"
-                  onClick={() => handleViewResults(exam.attemptId)}
-                  startIcon={<CompletedIcon />}
-                  fullWidth
-                >
-                  View Results
-                </Button>
-              )}
-              
-              {category === 'completed' && !exam.studentStartedExam && (
-                <Chip 
-                  icon={<EndedIcon />}
-                  label="Missed"
-                  color="error"
-                  variant="outlined"
-                />
+              {category === 'completed' && (
+                <>
+                  {exam.studentSubmitted ? (
+                    <Chip 
+                      icon={<CompletedIcon />}
+                      label={exam.status === 'timed-out' ? 'Time Expired' : 'Completed'}
+                      color={exam.status === 'timed-out' ? 'warning' : 'success'} 
+                      variant="outlined"
+                    />
+                  ) : (
+                    <Chip 
+                      icon={<EndedIcon />}
+                      label="Ended (Not Submitted)" 
+                      color="error"
+                      variant="outlined"
+                    />
+                  )}
+                  
+                  {exam.studentSubmitted && exam.attemptId && (
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      onClick={() => handleViewResults(exam.attemptId)}
+                      className="action-button"
+                    >
+                      View Results
+                    </Button>
+                  )}
+                </>
               )}
             </Grid>
           </Grid>

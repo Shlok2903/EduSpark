@@ -883,12 +883,61 @@ exports.updateTimeRemaining = async (req, res) => {
     
     // If time is up, auto-submit
     if (timeRemaining <= 0) {
-      // Logic similar to submitExam but with timed-out status
+      // Mark as timed out
       attempt.status = 'timed-out';
       attempt.submittedAt = new Date();
       
-      // We could add auto-grading logic here as well for MCQs
-      // But for simplicity, let's just update the status for now
+      // Get the exam to auto-grade MCQ questions
+      try {
+        const exam = await Exam.findById(attempt.examId);
+        if (exam) {
+          let totalMarksAwarded = 0;
+          
+          for (let sectionIndex = 0; sectionIndex < attempt.sections.length; sectionIndex++) {
+            const section = attempt.sections[sectionIndex];
+            const examSection = exam.sections.find(s => s._id.toString() === section.sectionId.toString());
+            
+            if (!examSection) continue;
+            
+            let sectionMarksAwarded = 0;
+            
+            for (let answerIndex = 0; answerIndex < section.answers.length; answerIndex++) {
+              const answer = section.answers[answerIndex];
+              const question = examSection.questions.find(q => q._id.toString() === answer.questionId.toString());
+              
+              if (!question) continue;
+              
+              // Auto-grade MCQs
+              if (question.type === 'mcq' && answer.selectedOption !== null) {
+                const isCorrect = question.options[answer.selectedOption]?.isCorrect || false;
+                
+                if (isCorrect) {
+                  answer.marksAwarded = question.marks;
+                  answer.isGraded = true;
+                  sectionMarksAwarded += question.marks;
+                } else {
+                  answer.marksAwarded = 0;
+                  answer.isGraded = true;
+                }
+              }
+            }
+            
+            section.totalMarksAwarded = sectionMarksAwarded;
+            totalMarksAwarded += sectionMarksAwarded;
+          }
+          
+          // Update total marks
+          attempt.totalMarksAwarded = totalMarksAwarded;
+          
+          // Calculate percentage for MCQs
+          if (exam.totalMarks > 0) {
+            attempt.percentage = (totalMarksAwarded / exam.totalMarks) * 100;
+          }
+        }
+      } catch (error) {
+        console.error('Error auto-grading MCQs on time expiry:', error);
+        // Continue with saving attempt even if auto-grading fails
+      }
     }
 
     await attempt.save();
@@ -968,8 +1017,12 @@ exports.getUserExams = async (req, res) => {
       const live = [];
       const completed = [];
       
+      // Get current date in UTC to match the stored dates format
+      const now = new Date();
+      
       exams.forEach(exam => {
         const examObj = exam.toObject();
+        // Create new Date objects in a consistent format
         const startTime = new Date(exam.startTime);
         const endTime = new Date(exam.endTime);
         
@@ -978,21 +1031,40 @@ exports.getUserExams = async (req, res) => {
         
         // Add attempt information
         examObj.studentStartedExam = !!attempt;
-        examObj.studentSubmitted = attempt ? attempt.status === 'submitted' || attempt.status === 'graded' : false;
+        examObj.studentSubmitted = attempt ? 
+          ['submitted', 'graded', 'timed-out'].includes(attempt.status) : false;
         examObj.attemptId = attempt ? attempt._id : null;
         examObj.timeRemaining = attempt ? attempt.timeRemaining : exam.duration * 60; // Convert duration to seconds
         
+        // Check if the attempt's time has expired but status hasn't been updated
+        const timeExpired = attempt && 
+                           attempt.status === 'in-progress' && 
+                           attempt.timeRemaining <= 0;
+                           
+        // Check if the exam's end time has passed
+        const examEnded = endTime < now;
+        
         // Categorize the exam
-        // If the student has submitted the exam, always put it in completed
-        if (examObj.studentSubmitted) {
-          examObj.status = 'completed';
+        // If the student has submitted the exam or time expired, always put it in completed
+        if (examObj.studentSubmitted || timeExpired || examEnded) {
+          examObj.status = examObj.studentSubmitted ? 'completed' : 
+                          timeExpired ? 'time-expired' : 'ended';
           completed.push(examObj);
-        }
-        // Otherwise categorize based on time
-        else if (endTime < now) {
-          examObj.status = 'ended';
-          completed.push(examObj);
-        } else if (startTime <= now && endTime >= now) {
+          
+          // If the attempt is in progress but time expired, update its status
+          if (attempt && timeExpired && attempt.status === 'in-progress') {
+            // Update the attempt status asynchronously
+            ExamAttempt.findByIdAndUpdate(
+              attempt._id,
+              { 
+                status: 'timed-out',
+                submittedAt: new Date()
+              },
+              { new: true }
+            ).catch(err => console.error('Error updating expired attempt:', err));
+          }
+        } 
+        else if (startTime <= now && endTime >= now) {
           examObj.status = 'live';
           live.push(examObj);
         } else {
