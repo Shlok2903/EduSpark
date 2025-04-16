@@ -5,6 +5,8 @@ const signupValidation = (req, res, next) => {
     name: Joi.string().min(3).max(100).required(),
     email: Joi.string().email().required(),
     password: Joi.string().min(4).max(100).required(),
+    isAdmin: Joi.boolean().optional(),
+    isTutor: Joi.boolean().optional()
   });
   const { error } = schema.validate(req.body);
   if (error) {

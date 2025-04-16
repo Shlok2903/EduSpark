@@ -4,27 +4,40 @@ const jwt = require('jsonwebtoken')
 
 const signup = async (req, res)=>{
 try {
-    const { name, email, password } = req.body
-    const isTutor = req.originalUrl === '/auth/tutorsignup'
+    const { name, email, password, isAdmin, isTutor } = req.body
+    // We'll keep the original logic for backward compatibility
+    const isAutomaticTutor = req.originalUrl === '/auth/tutorsignup'
     
     const user = await UserModel.findOne({email})
     if(user){
         return res.status(409).json({message: 'User is already exist, you can login', success: false})
     }
+    
+    // Create new user with the provided role flags or fallback to the route-based method
     const userModel = new UserModel({
         name, 
         email, 
         password,
-        isTutor
+        isAdmin: isAdmin === true, // Ensure it's a boolean
+        isTutor: isTutor === true || isAutomaticTutor // Honor both methods
     })
+    
     userModel.password = await bcrypt.hash(password, 10)
     await userModel.save()
+    
+    // Determine role type for the response message
+    let userType = 'User'
+    if (userModel.isAdmin) userType = 'Admin'
+    else if (userModel.isTutor) userType = 'Tutor'
+    
     res.status(201).json({
-        message: `${isTutor ? 'Tutor' : 'User'} signup successful`,
+        message: `${userType} signup successful`,
         success: true
     })
 } catch (err) {
-    res.status(500).json({message: "Internal server error",
+    console.error('Signup error:', err);
+    res.status(500).json({
+        message: "Internal server error",
         success: false
     })
 }

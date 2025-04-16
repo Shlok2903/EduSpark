@@ -203,16 +203,12 @@ function Login() {
             {isLoading ? 'Logging in...' : 'Login'}
           </Button>
 
-          <Box className="login-signup-prompt">
-            <Typography component="span">
+          <Box className="login-form-options" sx={{ mt: 2, textAlign: 'center' }}>
+            <Typography variant="body2">
               Don't have an account?{' '}
-              <Typography
-                component={Link}
-                to="/signup"
-                className="login-signup-link"
-              >
+              <Link to="/signup" className="login-link">
                 Sign up
-              </Typography>
+              </Link>
             </Typography>
           </Box>
         </form>

@@ -7,6 +7,7 @@ import { createTheme, ThemeProvider, StyledEngineProvider } from '@mui/material/
 import CssBaseline from '@mui/material/CssBaseline';
 import store from './store/store';
 import Login from './components/auth/login/Login';
+import Signup from './components/auth/signup/Signup';
 import Home from './components/home/Home';
 import MainLayout from './components/layouts/MainLayout';
 import StudentCourses from './components/courses/student/StudentCourses';
@@ -142,6 +143,7 @@ function App() {
             <Routes>
               {/* Public routes */}
               <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
               
               {/* Protected routes for all users */}
               <Route

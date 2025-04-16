@@ -1,0 +1,19 @@
+/* Signup specific styles */
+.signup-container {
+  min-height: 100vh;
+}
+
+.signup-form-container {
+  max-width: 450px;
+  padding: 30px 25px;
+}
+
+.login-link {
+  color: #3498db;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.login-link:hover {
+  text-decoration: underline;
+} 

@@ -206,4 +206,14 @@
   .plant-dark, .plant-light {
     height: 200px;
   }
+}
+
+.login-link {
+  color: #3498db;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.login-link:hover {
+  text-decoration: underline;
 } 

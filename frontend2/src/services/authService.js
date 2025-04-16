@@ -92,7 +92,13 @@ const login = async (credentials) => {
 // Register user
 const register = async (userData) => {
   try {
-    const response = await api.post('/auth/register', userData);
+    // Determine which endpoint to use based on the role
+    let endpoint = '/auth/signup';
+    
+    // For simplicity in this temporary implementation, we'll just use the signup endpoint
+    // with the isAdmin and isTutor flags in the request body
+    
+    const response = await api.post(endpoint, userData);
     return { success: true, data: response };
   } catch (error) {
     return { 
