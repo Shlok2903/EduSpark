@@ -264,7 +264,7 @@ const AddStudentForm = ({ open, onClose, onSuccess }) => {
                   id="branch"
                   name="branch"
                   value={formData.branch}
-                  onChange={handleChange}
+                onChange={handleChange}
                   label="Branch"
                 >
                   {isLoading ? (
@@ -291,7 +291,7 @@ const AddStudentForm = ({ open, onClose, onSuccess }) => {
                   id="semester"
                   name="semester"
                   value={formData.semester}
-                  onChange={handleChange}
+                onChange={handleChange}
                   label="Semester"
                 >
                   {isLoading || loadingSemesters ? (
