@@ -14,6 +14,7 @@ const enrollmentRouter = require('./Routes/EnrollmentRouter');
 const practiceRouter = require('./Routes/practiceRoutes');
 const examRouter = require('./Routes/ExamRouter');
 const quizRoutes = require('./Routes/quizRoutes');
+const studentRouter = require('./Routes/StudentRouter');
 
 require('dotenv').config();
 
@@ -52,6 +53,7 @@ app.use('/enrollments', enrollmentRouter);
 app.use('/practice', practiceRouter);
 app.use('/exams', examRouter);
 app.use('/api/quizzes', quizRoutes);
+app.use('/students', studentRouter);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

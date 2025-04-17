@@ -6,6 +6,7 @@ import sectionService from './sectionService';
 import moduleService from './moduleService';
 import examService from './examService';
 import quizService from './quizService';
+import studentService from './studentService';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -63,7 +64,8 @@ export {
   sectionService,
   moduleService,
   examService,
-  quizService
+  quizService,
+  studentService
 };
 
 export default api; 

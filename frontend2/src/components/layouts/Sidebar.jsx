@@ -9,6 +9,7 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import QuizIcon from '@mui/icons-material/Quiz';
 import DescriptionIcon from '@mui/icons-material/Description';
 import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
+import PeopleIcon from '@mui/icons-material/People';
 import LogoSvg from '../../assets/logo.svg';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
@@ -81,6 +82,15 @@ function Sidebar() {
                 )}
                 
                 {/* Admin and Tutor specific options */}
+                {(isAdmin || isTutor) && (
+                    <>
+                        <div className={`nav-item ${activeTab === '/students' ? 'active' : ''}`} onClick={() => handleNavigation('/students')}>
+                            <PeopleIcon sx={{ fontSize: 20 }} />
+                            <span>Manage Students</span>
+                        </div>
+                    </>
+                )}
+
                 {isAdmin && (
                     <>
                         <div className={`nav-item ${activeTab === '/dashboard/courses/add' ? 'active' : ''}`} onClick={() => handleNavigation('/dashboard/courses/add')}>

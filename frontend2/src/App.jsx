@@ -26,6 +26,7 @@ import ExamResult from './components/exams/student/ExamResult';
 import StrictModeQuiz from './components/exams/student/StrictModeQuiz';
 import FullScreenQuiz from './components/quizzes/student/FullScreenQuiz';
 import EditCourse from './components/courses/teacher/EditCourse';
+import StudentManagement from './components/students/StudentManagement';
 import './App.css';
 
 // Create a custom theme for Material UI components
@@ -152,6 +153,16 @@ function App() {
                   <ProtectedRoute>
                     <Home />
                   </ProtectedRoute>
+                }
+              />
+              
+              {/* Student Management Route (for Teachers and Admins) */}
+              <Route
+                path="/students"
+                element={
+                  <TeacherRoute>
+                    <StudentManagement />
+                  </TeacherRoute>
                 }
               />
               

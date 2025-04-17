@@ -23,6 +23,27 @@ const UserSchema = new Schema({
     type: Boolean,
     default: false
   },
+  isStudent: {
+    type: Boolean,
+    default: false
+  },
+  // Student-specific fields
+  semester: {
+    type: String,
+    required: function() { return this.isStudent === true; }
+  },
+  degree: {
+    type: String,
+    required: function() { return this.isStudent === true; }
+  },
+  parentName: {
+    type: String,
+    required: function() { return this.isStudent === true; }
+  },
+  parentEmail: {
+    type: String,
+    required: function() { return this.isStudent === true; }
+  },
   enrolledCourses: [{
     type: Schema.Types.ObjectId,
     ref: 'courses'

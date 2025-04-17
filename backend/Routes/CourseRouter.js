@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { handleUpload } = require('../Middlewares/uploadMiddleware');
 const { verifyToken } = require('../Middlewares/AuthMiddleware');
-const { isAdminOrTutor } = require('../Middlewares/roleMiddleware');
+const { isTeacherOrAdmin } = require('../Middlewares/RoleMiddleware');
 const { isCreatorOrAdmin, isEnrolledOrCreator } = require('../Middlewares/CourseAccessMiddleware');
 const {
   createCourse,
@@ -30,7 +30,7 @@ router.get('/enrolled', getEnrolledCourses);
 router.get('/:courseId', getCourseById);
 
 // Create a new course with image upload - requires admin or tutor role
-router.post('/', isAdminOrTutor, handleUpload('courseImage'), createCourse);
+router.post('/', isTeacherOrAdmin, handleUpload('courseImage'), createCourse);
 
 // Update a course with optional image upload - requires admin or course creator
 router.put(

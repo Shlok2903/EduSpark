@@ -1,8 +1,8 @@
 /**
- * Check if the user is an admin
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Express next function
+ * Middleware to check if user is an admin
+ * @param {Object} req - Request object
+ * @param {Object} res - Response object
+ * @param {Function} next - Next middleware function
  */
 const isAdmin = (req, res, next) => {
   if (!req.user || !req.user.isAdmin) {
@@ -15,32 +15,32 @@ const isAdmin = (req, res, next) => {
 };
 
 /**
- * Check if the user is a tutor
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Express next function
+ * Middleware to check if user is a teacher
+ * @param {Object} req - Request object
+ * @param {Object} res - Response object
+ * @param {Function} next - Next middleware function
  */
-const isTutor = (req, res, next) => {
+const isTeacher = (req, res, next) => {
   if (!req.user || !req.user.isTutor) {
     return res.status(403).json({
       success: false,
-      message: 'Access denied. Tutor role required.'
+      message: 'Access denied. Teacher role required.'
     });
   }
   next();
 };
 
 /**
- * Check if the user is either an admin or a tutor
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Express next function
+ * Middleware to check if user is either an admin or a teacher
+ * @param {Object} req - Request object
+ * @param {Object} res - Response object
+ * @param {Function} next - Next middleware function
  */
-const isAdminOrTutor = (req, res, next) => {
+const isTeacherOrAdmin = (req, res, next) => {
   if (!req.user || (!req.user.isAdmin && !req.user.isTutor)) {
     return res.status(403).json({
       success: false,
-      message: 'Access denied. Admin or tutor role required.'
+      message: 'Access denied. Teacher or admin role required.'
     });
   }
   next();
@@ -92,7 +92,7 @@ const isAdminOrCreator = (findResource) => {
 
 module.exports = {
   isAdmin,
-  isTutor,
-  isAdminOrTutor,
+  isTeacher,
+  isTeacherOrAdmin,
   isAdminOrCreator
 }; 
