@@ -172,7 +172,7 @@ const isCreator = async (courseId, userId) => {
  */
 const createCourse = async (courseData, imageBuffer, userId) => {
   try {
-    const { title, description, isOptional, deadline } = courseData;
+    const { title, description, visibilityType, deadline } = courseData;
     
     // Upload image to cloudinary if provided
     let imageUrl = '';
@@ -188,10 +188,11 @@ const createCourse = async (courseData, imageBuffer, userId) => {
       course_id,
       title,
       description,
-      isOptional: isOptional === 'true',
+      visibilityType: visibilityType || 'public', // Default to public if not specified
       deadline: deadline ? new Date(deadline) : null,
       imageUrl,
-      createdBy: userId
+      createdBy: userId,
+      assignments: [] // Initialize with empty assignments
     });
 
     await course.save();
@@ -352,6 +353,201 @@ const getEnrolledCourses = async (userId) => {
   }
 };
 
+/**
+ * Assign a course to a specific branch and semester
+ * @param {string} courseId - Course ID
+ * @param {string} branchId - Branch ID
+ * @param {string} semesterId - Semester ID
+ * @param {string} userId - User ID of assigner (must be admin or creator)
+ * @returns {Promise<Object>} Updated course
+ */
+const assignCourse = async (courseId, branchId, semesterId, userId) => {
+  try {
+    const course = await Course.findById(courseId);
+    
+    if (!course) {
+      throw new Error('Course not found');
+    }
+    
+    // Check if user is creator or admin
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    
+    if (course.createdBy.toString() !== userId && !user.isAdmin && !user.isTutor) {
+      throw new Error('Not authorized to assign this course');
+    }
+    
+    // Check if branch and semester exist
+    const branch = await mongoose.model('branches').findById(branchId);
+    if (!branch) {
+      throw new Error('Branch not found');
+    }
+    
+    const semester = await mongoose.model('semesters').findById(semesterId);
+    if (!semester) {
+      throw new Error('Semester not found');
+    }
+    
+    // Check if semester belongs to the branch
+    if (semester.branchId.toString() !== branchId) {
+      throw new Error('Semester does not belong to the selected branch');
+    }
+    
+    // Check if assignment already exists
+    const existingAssignment = course.assignments.find(
+      assignment => 
+        assignment.branchId.toString() === branchId && 
+        assignment.semesterId.toString() === semesterId
+    );
+    
+    if (existingAssignment) {
+      throw new Error('Course is already assigned to this branch and semester');
+    }
+    
+    // Add the new assignment
+    course.assignments.push({
+      branchId,
+      semesterId,
+      assignedAt: new Date()
+    });
+    
+    await course.save();
+    
+    return course;
+  } catch (error) {
+    throw new Error(`Error assigning course: ${error.message}`);
+  }
+};
+
+/**
+ * Unassign a course from a specific branch and semester
+ * @param {string} courseId - Course ID
+ * @param {string} branchId - Branch ID
+ * @param {string} semesterId - Semester ID
+ * @param {string} userId - User ID of assigner (must be admin or creator)
+ * @returns {Promise<Object>} Updated course
+ */
+const unassignCourse = async (courseId, branchId, semesterId, userId) => {
+  try {
+    const course = await Course.findById(courseId);
+    
+    if (!course) {
+      throw new Error('Course not found');
+    }
+    
+    // Check if user is creator or admin
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    
+    if (course.createdBy.toString() !== userId && !user.isAdmin && !user.isTutor) {
+      throw new Error('Not authorized to unassign this course');
+    }
+    
+    // Filter out the assignment
+    course.assignments = course.assignments.filter(
+      assignment => 
+        !(assignment.branchId.toString() === branchId && 
+          assignment.semesterId.toString() === semesterId)
+    );
+    
+    await course.save();
+    
+    return course;
+  } catch (error) {
+    throw new Error(`Error unassigning course: ${error.message}`);
+  }
+};
+
+/**
+ * Get courses assigned to a specific branch and semester
+ * @param {string} branchId - Branch ID
+ * @param {string} semesterId - Semester ID
+ * @returns {Promise<Array>} Courses assigned to the branch and semester
+ */
+const getAssignedCourses = async (branchId, semesterId) => {
+  try {
+    const courses = await Course.find({
+      'assignments': { 
+        $elemMatch: { 
+          branchId: mongoose.Types.ObjectId(branchId),
+          semesterId: mongoose.Types.ObjectId(semesterId)
+        }
+      }
+    }).populate('createdBy', 'name email');
+    
+    return courses;
+  } catch (error) {
+    throw new Error(`Error fetching assigned courses: ${error.message}`);
+  }
+};
+
+/**
+ * Get courses for a student based on their branch and semester
+ * This includes public courses and assigned courses (both mandatory and optional)
+ * @param {string} userId - User ID of the student
+ * @param {string} branchId - Student's branch ID
+ * @param {string} semesterId - Student's semester ID
+ * @returns {Promise<Object>} Object with public, mandatory and optional courses
+ */
+const getCoursesForStudent = async (userId, branchId, semesterId) => {
+  try {
+    // Get all public courses
+    const publicCourses = await Course.find({ visibilityType: 'public' })
+      .populate('createdBy', 'name email');
+    
+    // Get courses assigned to the student's branch and semester
+    const assignedCourses = await Course.find({
+      'assignments': { 
+        $elemMatch: { 
+          branchId: mongoose.Types.ObjectId(branchId),
+          semesterId: mongoose.Types.ObjectId(semesterId)
+        }
+      }
+    }).populate('createdBy', 'name email');
+    
+    // Separate mandatory and optional courses
+    const mandatoryCourses = assignedCourses.filter(
+      course => course.visibilityType === 'mandatory'
+    );
+    
+    const optionalCourses = assignedCourses.filter(
+      course => course.visibilityType === 'optional'
+    );
+    
+    // Get the student's enrollments to determine enrollment status
+    const enrollments = await Enrollment.find({ userId });
+    const enrolledCourseIds = enrollments.map(e => e.courseId.toString());
+    
+    // Add enrollment status to each course
+    const processedPublicCourses = publicCourses.map(course => ({
+      ...course.toObject(),
+      isEnrolled: enrolledCourseIds.includes(course._id.toString())
+    }));
+    
+    const processedMandatoryCourses = mandatoryCourses.map(course => ({
+      ...course.toObject(),
+      isEnrolled: enrolledCourseIds.includes(course._id.toString())
+    }));
+    
+    const processedOptionalCourses = optionalCourses.map(course => ({
+      ...course.toObject(),
+      isEnrolled: enrolledCourseIds.includes(course._id.toString())
+    }));
+    
+    return {
+      publicCourses: processedPublicCourses,
+      mandatoryCourses: processedMandatoryCourses,
+      optionalCourses: processedOptionalCourses
+    };
+  } catch (error) {
+    throw new Error(`Error fetching courses for student: ${error.message}`);
+  }
+};
+
 module.exports = {
   getAllCourses,
   getCourseById,
@@ -362,5 +558,9 @@ module.exports = {
   isCreator,
   getUserIdString,
   getCoursesByCreator,
-  getEnrolledCourses
+  getEnrolledCourses,
+  assignCourse,
+  unassignCourse,
+  getAssignedCourses,
+  getCoursesForStudent
 }; 

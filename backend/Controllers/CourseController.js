@@ -230,6 +230,143 @@ const getEnrolledCourses = async (req, res) => {
   }
 };
 
+// Assign a course to a branch and semester
+const assignCourse = async (req, res) => {
+  try {
+    const { courseId, branchId, semesterId } = req.body;
+    const userId = req.user._id;
+    
+    // Validate required fields
+    if (!courseId || !branchId || !semesterId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Course ID, branch ID, and semester ID are required'
+      });
+    }
+    
+    const course = await courseService.assignCourse(courseId, branchId, semesterId, userId);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Course assigned successfully',
+      data: course
+    });
+  } catch (error) {
+    console.error('Error assigning course:', error);
+    
+    // Determine appropriate status code based on error
+    let statusCode = 500;
+    if (error.message.includes('not found')) {
+      statusCode = 404;
+    } else if (error.message.includes('Not authorized')) {
+      statusCode = 403;
+    } else if (error.message.includes('already assigned')) {
+      statusCode = 400;
+    }
+    
+    res.status(statusCode).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// Unassign a course from a branch and semester
+const unassignCourse = async (req, res) => {
+  try {
+    const { courseId, branchId, semesterId } = req.body;
+    const userId = req.user._id;
+    
+    // Validate required fields
+    if (!courseId || !branchId || !semesterId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Course ID, branch ID, and semester ID are required'
+      });
+    }
+    
+    const course = await courseService.unassignCourse(courseId, branchId, semesterId, userId);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Course unassigned successfully',
+      data: course
+    });
+  } catch (error) {
+    console.error('Error unassigning course:', error);
+    
+    // Determine appropriate status code based on error
+    let statusCode = 500;
+    if (error.message.includes('not found')) {
+      statusCode = 404;
+    } else if (error.message.includes('Not authorized')) {
+      statusCode = 403;
+    }
+    
+    res.status(statusCode).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// Get courses assigned to a branch and semester
+const getAssignedCourses = async (req, res) => {
+  try {
+    const { branchId, semesterId } = req.params;
+    
+    // Validate parameters
+    if (!branchId || !semesterId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Branch ID and semester ID are required'
+      });
+    }
+    
+    const courses = await courseService.getAssignedCourses(branchId, semesterId);
+    
+    res.status(200).json({
+      success: true,
+      data: courses
+    });
+  } catch (error) {
+    console.error('Error fetching assigned courses:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// Get courses for a student based on their branch and semester
+const getCoursesForStudent = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { branchId, semesterId } = req.params;
+    
+    // Validate parameters
+    if (!branchId || !semesterId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Branch ID and semester ID are required'
+      });
+    }
+    
+    const courses = await courseService.getCoursesForStudent(userId, branchId, semesterId);
+    
+    res.status(200).json({
+      success: true,
+      data: courses
+    });
+  } catch (error) {
+    console.error('Error fetching courses for student:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 // Export all controller functions
 module.exports = {
   createCourse,
@@ -238,5 +375,9 @@ module.exports = {
   updateCourse,
   deleteCourse,
   getTutorCourses,
-  getEnrolledCourses
+  getEnrolledCourses,
+  assignCourse,
+  unassignCourse,
+  getAssignedCourses,
+  getCoursesForStudent
 }; 

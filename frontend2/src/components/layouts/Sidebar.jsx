@@ -10,6 +10,7 @@ import QuizIcon from '@mui/icons-material/Quiz';
 import DescriptionIcon from '@mui/icons-material/Description';
 import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
 import PeopleIcon from '@mui/icons-material/People';
+import CategoryIcon from '@mui/icons-material/Category';
 import LogoSvg from '../../assets/logo.svg';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
@@ -101,15 +102,11 @@ function Sidebar() {
                             <LibraryBooksIcon sx={{ fontSize: 20 }} />
                             <span>Manage Exams</span>
                         </div>
+                        <div className={`nav-item ${activeTab.includes('/admin/manage-branch') ? 'active' : ''}`} onClick={() => handleNavigation('/admin/manage-branch')}>
+                            <CategoryIcon sx={{ fontSize: 20 }} />
+                            <span>Manage Branches</span>
+                        </div>
                     </>
-                )}
-                
-                {/* Admin specific options */}
-                {isAdmin && (
-                    <div className={`nav-item ${activeTab === '/admin-dashboard' ? 'active' : ''}`} onClick={() => handleNavigation('/admin-dashboard')}>
-                        <DashboardIcon sx={{ fontSize: 20 }} />
-                        <span>Admin Dashboard</span>
-                    </div>
                 )}
                 
                 {/* Tutor specific options */}

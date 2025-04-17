@@ -29,11 +29,13 @@ const UserSchema = new Schema({
   },
   // Student-specific fields
   semester: {
-    type: String,
+    type: Schema.Types.ObjectId,
+    ref: 'semesters',
     required: function() { return this.isStudent === true; }
   },
-  degree: {
-    type: String,
+  branch: {
+    type: Schema.Types.ObjectId,
+    ref: 'branches',
     required: function() { return this.isStudent === true; }
   },
   parentName: {

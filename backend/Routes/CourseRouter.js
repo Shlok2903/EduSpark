@@ -11,7 +11,11 @@ const {
   updateCourse,
   deleteCourse,
   getTutorCourses,
-  getEnrolledCourses
+  getEnrolledCourses,
+  getAssignedCourses,
+  getCoursesForStudent,
+  assignCourse,
+  unassignCourse
 } = require('../Controllers/CourseController');
 
 // Apply auth middleware to all routes
@@ -25,6 +29,12 @@ router.get('/tutor/:tutorId', getTutorCourses);
 
 // Get all courses the user is enrolled in
 router.get('/enrolled', getEnrolledCourses);
+
+// Get courses assigned to a branch and semester
+router.get('/assigned/:branchId/:semesterId', getAssignedCourses);
+
+// Get courses for student based on their branch and semester
+router.get('/student/:branchId/:semesterId', getCoursesForStudent);
 
 // Get a specific course by ID - checks for creator or enrollment status
 router.get('/:courseId', getCourseById);
@@ -46,5 +56,11 @@ router.delete(
   isCreatorOrAdmin, 
   deleteCourse
 );
+
+// Assign a course to a branch and semester (tutors/admins only)
+router.post('/assign', isTeacherOrAdmin, assignCourse);
+
+// Unassign a course from a branch and semester (tutors/admins only)
+router.post('/unassign', isTeacherOrAdmin, unassignCourse);
 
 module.exports = router; 

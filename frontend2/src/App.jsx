@@ -27,6 +27,7 @@ import StrictModeQuiz from './components/exams/student/StrictModeQuiz';
 import FullScreenQuiz from './components/quizzes/student/FullScreenQuiz';
 import EditCourse from './components/courses/teacher/EditCourse';
 import StudentManagement from './components/students/StudentManagement';
+import AdminSettings from './components/admin/AdminSettings';
 import './App.css';
 
 // Create a custom theme for Material UI components
@@ -134,6 +135,22 @@ const DirectStudentRoute = ({ children }) => {
   return children;
 };
 
+// Admin-only protected route
+const AdminRoute = ({ children }) => {
+  const isAuthenticated = !!localStorage.getItem('jwtToken');
+  const isAdmin = localStorage.getItem('isAdmin') === 'true';
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
+  
+  if (!isAdmin) {
+    return <Navigate to="/home" />;
+  }
+  
+  return <MainLayout>{children}</MainLayout>;
+};
+
 function App() {
   return (
     <StyledEngineProvider injectFirst>
@@ -153,6 +170,16 @@ function App() {
                   <ProtectedRoute>
                     <Home />
                   </ProtectedRoute>
+                }
+              />
+              
+              {/* Admin-only routes */}
+              <Route
+                path="/admin/manage-branch"
+                element={
+                  <AdminRoute>
+                    <AdminSettings />
+                  </AdminRoute>
                 }
               />
               

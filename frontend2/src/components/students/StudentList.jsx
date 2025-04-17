@@ -104,12 +104,14 @@ const StudentList = ({ onAddStudentClick, refreshTrigger }) => {
             <TextField
               select
               fullWidth
+            
               label="Degree"
               name="degree"
+              
               value={filter.degree}
               onChange={handleFilterChange}
             >
-              <MenuItem value="">All Degrees</MenuItem>
+              <MenuItem  value="">All Degrees</MenuItem>
               {filterOptions.degrees.map((degree) => (
                 <MenuItem key={degree} value={degree}>
                   {degree}

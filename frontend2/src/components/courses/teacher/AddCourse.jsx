@@ -11,8 +11,11 @@ import {
   Stepper,
   Step,
   StepLabel,
-  FormControlLabel,
-  Switch
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormHelperText
 } from '@mui/material';
 import { PhotoCamera } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -28,17 +31,17 @@ function AddCourse() {
   const [courseData, setCourseData] = useState({
     title: '',
     description: '',
-    isOptional: false,
+    visibilityType: 'public', // Default to public
     deadline: '',
     courseImage: null
   });
   const [imagePreview, setImagePreview] = useState(null);
 
   const handleChange = (e) => {
-    const { name, value, checked, type } = e.target;
+    const { name, value } = e.target;
     setCourseData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: value
     }));
   };
 
@@ -82,9 +85,9 @@ function AddCourse() {
       return;
     }
 
-    // Validate that deadline is set if course is not optional
-    if (!courseData.isOptional && !courseData.deadline) {
-      toast.error('Please set a deadline for required courses');
+    // Validate that deadline is set if course is mandatory
+    if (courseData.visibilityType === 'mandatory' && !courseData.deadline) {
+      toast.error('Please set a deadline for mandatory courses');
       setLoading(false);
       return;
     }
@@ -192,23 +195,35 @@ function AddCourse() {
                   />
                 </Grid>
 
-                <Grid item xs={12}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={courseData.isOptional}
+                <Grid item xs={12} md={6}>
+                  <FormControl fullWidth required>
+                    <InputLabel id="visibility-type-label">Course Visibility</InputLabel>
+                    <Select
+                      labelId="visibility-type-label"
+                      id="visibilityType"
+                      name="visibilityType"
+                      value={courseData.visibilityType}
                         onChange={handleChange}
-                        name="isOptional"
-                        color="primary"
-                      />
-                    }
-                    label="Optional Course"
-                  />
+                      label="Course Visibility"
+                    >
+                      <MenuItem value="public">Public (Anyone can enroll and view)</MenuItem>
+                      <MenuItem value="mandatory">Mandatory (Auto-enrolled for assigned students)</MenuItem>
+                      <MenuItem value="optional">Optional (Assigned students can choose to enroll)</MenuItem>
+                    </Select>
+                    <FormHelperText>
+                      {courseData.visibilityType === 'public' 
+                        ? 'Anyone can see and enroll in this course' 
+                        : courseData.visibilityType === 'mandatory'
+                        ? 'Assigned students will be auto-enrolled and must complete this course'
+                        : 'Only assigned students can see this course, but enrollment is optional'}
+                    </FormHelperText>
+                  </FormControl>
+                </Grid>
 
-                  {!courseData.isOptional && (
+                <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
-                      label="Deadline"
+                    label="Deadline (Optional for mandatory courses)"
                       name="deadline"
                       type="date"
                       value={courseData.deadline}
@@ -216,83 +231,73 @@ function AddCourse() {
                       InputLabelProps={{
                         shrink: true,
                       }}
-                      inputProps={{
-                        min: new Date().toISOString().split('T')[0]
-                      }}
+                    helperText={courseData.visibilityType === 'mandatory' ? 'Required for mandatory courses' : 'Optional'}
+                    required={courseData.visibilityType === 'mandatory'}
                     />
-                  )}
                 </Grid>
                 
                 <Grid item xs={12}>
                   <Typography variant="subtitle1" gutterBottom>
-                    Course Thumbnail Image
+                    Course Thumbnail
                   </Typography>
-                  <Box className="image-upload-container">
-                    {imagePreview ? (
-                      <Box className="image-preview-container">
-                        <img 
-                          src={imagePreview} 
-                          alt="Course preview" 
-                          className="image-preview" 
-                        />
-                        <Button 
-                          variant="contained" 
-                          onClick={() => {
-                            setImagePreview(null);
-                            setCourseData(prev => ({ ...prev, courseImage: null }));
-                          }}
-                          className="change-image-btn"
-                        >
-                          Change Image
-                        </Button>
-                      </Box>
-                    ) : (
+                  <input
+                    accept="image/*"
+                    id="course-image-upload"
+                    type="file"
+                    onChange={handleImageChange}
+                    style={{ display: 'none' }}
+                  />
+                  <label htmlFor="course-image-upload">
                       <Button
                         variant="outlined"
-                        component="label"
+                      component="span"
                         startIcon={<PhotoCamera />}
-                        className="upload-button"
                       >
-                        Upload Thumbnail
-                        <input
-                          type="file"
-                          hidden
-                          accept="image/*"
-                          onChange={handleImageChange}
+                      Upload Image
+                    </Button>
+                  </label>
+                  {imagePreview && (
+                    <Box mt={2} textAlign="center">
+                      <img
+                        src={imagePreview}
+                        alt="Course thumbnail preview"
+                        style={{
+                          maxWidth: '100%',
+                          maxHeight: '200px',
+                          objectFit: 'cover',
+                          borderRadius: '8px'
+                        }}
                         />
-                      </Button>
+                    </Box>
                     )}
-                  </Box>
                 </Grid>
                 
-                <Grid item xs={12} className="actions-container">
+                <Grid item xs={12} textAlign="right">
                   <Button 
-                    variant="contained" 
-                    color="primary" 
                     type="submit"
+                    variant="contained"
+                    color="primary"
                     disabled={loading}
-                    fullWidth
                   >
-                    {loading ? 'Creating Course...' : 'Create Course & Continue'}
+                    {loading ? 'Creating...' : 'Create Course & Continue'}
                   </Button>
                 </Grid>
               </Grid>
             </form>
           ) : (
-            <Box className="next-steps-container">
+            <Box textAlign="center" py={4}>
               <Typography variant="h6" gutterBottom>
-                Course Created Successfully!
+                Course created successfully!
               </Typography>
               <Typography variant="body1" paragraph>
-                Your course has been created. Now let's add some sections and content to your course.
+                Now you can add sections and modules to your course.
               </Typography>
               <Button
                 variant="contained"
                 color="primary"
                 onClick={handleAddSections}
-                className="next-button"
               >
-                Continue to Add Sections
+                Add Course Sections
               </Button>
             </Box>
           )}

@@ -50,4 +50,30 @@ exports.verifyToken = async (req, res, next) => {
     console.error('Error verifying token:', error);
     return res.status(500).json({ message: 'Authentication error.', error: error.message });
   }
+};
+
+// Middleware to check if user is an admin
+exports.isAdmin = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+  
+  if (!req.user.isAdmin) {
+    return res.status(403).json({ message: 'Access denied. Admin privileges required' });
+  }
+  
+  next();
+};
+
+// Middleware to check if user is a tutor
+exports.isTutor = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+  
+  if (!req.user.isTutor && !req.user.isAdmin) {
+    return res.status(403).json({ message: 'Access denied. Teacher privileges required' });
+  }
+  
+  next();
 }; 

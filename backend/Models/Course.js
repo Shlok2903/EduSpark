@@ -17,9 +17,11 @@ const CourseSchema = new Schema({
     type: String,
     required: true,
   },
-  isOptional: {
-    type: Boolean,
-    default: true,
+  visibilityType: {
+    type: String,
+    enum: ['public', 'mandatory', 'optional'],
+    default: 'public',
+    required: true
   },
   deadline: {
     type: Date,
@@ -32,6 +34,22 @@ const CourseSchema = new Schema({
     ref: "users",
     required: true,
   },
+  assignments: [{
+    branchId: {
+      type: Schema.Types.ObjectId,
+      ref: "branches",
+      required: true
+    },
+    semesterId: {
+      type: Schema.Types.ObjectId,
+      ref: "semesters",
+      required: true
+    },
+    assignedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   createdAt: {
     type: Date,
     default: Date.now,

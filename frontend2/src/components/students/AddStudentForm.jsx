@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -10,17 +10,23 @@ import {
   Grid,
   CircularProgress,
   Alert,
-  IconButton
+  IconButton,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Select,
+  FormHelperText
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { studentService } from '../../services/api';
+import axios from 'axios';
 
 const AddStudentForm = ({ open, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     semester: '',
-    degree: '',
+    branch: '',
     parentName: '',
     parentEmail: ''
   });
@@ -29,6 +35,77 @@ const AddStudentForm = ({ open, onClose, onSuccess }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [branches, setBranches] = useState([]);
+  const [semesters, setSemesters] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingSemesters, setLoadingSemesters] = useState(false);
+
+  // Fetch branches and semesters on component mount
+  useEffect(() => {
+    if (open) {
+      fetchBranches();
+    }
+  }, [open]);
+
+  // Fetch semesters when branch selection changes
+  useEffect(() => {
+    if (formData.branch && open) {
+      fetchSemestersByBranch(formData.branch);
+    }
+  }, [formData.branch, open]);
+
+  // Fetch branches from API
+  const fetchBranches = async () => {
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('jwtToken');
+      const headers = {
+        Authorization: `Bearer ${token}`
+      };
+
+      // Fetch branches
+      const branchesResponse = await axios.get(`${import.meta.env.VITE_API_URL}/branches`, { headers });
+      if (branchesResponse.data.success) {
+        setBranches(branchesResponse.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching branches:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch semesters for a specific branch
+  const fetchSemestersByBranch = async (branchId) => {
+    if (!branchId) return;
+    
+    setLoadingSemesters(true);
+    try {
+      const token = localStorage.getItem('jwtToken');
+      const headers = {
+        Authorization: `Bearer ${token}`
+      };
+
+      // Fetch semesters for selected branch
+      const semestersResponse = await axios.get(`${import.meta.env.VITE_API_URL}/semesters/by-branch/${branchId}`, { headers });
+      if (semestersResponse.data.success) {
+        setSemesters(semestersResponse.data.data);
+        
+        // If current selected semester is not in this branch, reset it
+        const validSemesterIds = semestersResponse.data.data.map(sem => sem._id);
+        if (formData.semester && !validSemesterIds.includes(formData.semester)) {
+          setFormData({
+            ...formData,
+            semester: ''
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching semesters:', error);
+    } finally {
+      setLoadingSemesters(false);
+    }
+  };
 
   // Handle input changes
   const handleChange = (e) => {
@@ -56,8 +133,8 @@ const AddStudentForm = ({ open, onClose, onSuccess }) => {
     if (!formData.email.trim()) newErrors.email = 'Email is required';
     else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email is invalid';
     
-    if (!formData.semester.trim()) newErrors.semester = 'Semester is required';
-    if (!formData.degree.trim()) newErrors.degree = 'Degree is required';
+    if (!formData.semester) newErrors.semester = 'Semester is required';
+    if (!formData.branch) newErrors.branch = 'Branch is required';
     if (!formData.parentName.trim()) newErrors.parentName = 'Parent name is required';
     
     if (!formData.parentEmail.trim()) newErrors.parentEmail = 'Parent email is required';
@@ -85,7 +162,7 @@ const AddStudentForm = ({ open, onClose, onSuccess }) => {
           name: '',
           email: '',
           semester: '',
-          degree: '',
+          branch: '',
           parentName: '',
           parentEmail: ''
         });
@@ -180,31 +257,65 @@ const AddStudentForm = ({ open, onClose, onSuccess }) => {
             </Grid>
             
             <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Semester"
-                name="semester"
-                value={formData.semester}
-                onChange={handleChange}
-                error={!!errors.semester}
-                helperText={errors.semester}
-                disabled={isSubmitting}
-                required
-              />
+              <FormControl fullWidth error={!!errors.branch} disabled={isSubmitting || isLoading} required>
+                <InputLabel id="branch-label">Branch</InputLabel>
+                <Select
+                  labelId="branch-label"
+                  id="branch"
+                  name="branch"
+                  value={formData.branch}
+                  onChange={handleChange}
+                  label="Branch"
+                >
+                  {isLoading ? (
+                    <MenuItem value="" disabled>
+                      Loading...
+                    </MenuItem>
+                  ) : (
+                    branches.map((branch) => (
+                      <MenuItem key={branch._id} value={branch._id}>
+                        {branch.name}
+                      </MenuItem>
+                    ))
+                  )}
+                </Select>
+                {errors.branch && <FormHelperText>{errors.branch}</FormHelperText>}
+              </FormControl>
             </Grid>
             
             <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Degree"
-                name="degree"
-                value={formData.degree}
-                onChange={handleChange}
-                error={!!errors.degree}
-                helperText={errors.degree}
-                disabled={isSubmitting}
-                required
-              />
+              <FormControl fullWidth error={!!errors.semester} disabled={isSubmitting || isLoading || loadingSemesters || !formData.branch} required>
+                <InputLabel id="semester-label">Semester</InputLabel>
+                <Select
+                  labelId="semester-label"
+                  id="semester"
+                  name="semester"
+                  value={formData.semester}
+                  onChange={handleChange}
+                  label="Semester"
+                >
+                  {isLoading || loadingSemesters ? (
+                    <MenuItem value="" disabled>
+                      Loading...
+                    </MenuItem>
+                  ) : !formData.branch ? (
+                    <MenuItem value="" disabled>
+                      First select a branch
+                    </MenuItem>
+                  ) : semesters.length === 0 ? (
+                    <MenuItem value="" disabled>
+                      No semesters for this branch
+                    </MenuItem>
+                  ) : (
+                    semesters.map((semester) => (
+                      <MenuItem key={semester._id} value={semester._id}>
+                        {semester.name}
+                      </MenuItem>
+                    ))
+                  )}
+                </Select>
+                {errors.semester && <FormHelperText>{errors.semester}</FormHelperText>}
+              </FormControl>
             </Grid>
             
             <Grid item xs={12} sm={6}>
@@ -249,7 +360,6 @@ const AddStudentForm = ({ open, onClose, onSuccess }) => {
           <Button 
             type="submit" 
             variant="contained" 
-            color="primary"
             disabled={isSubmitting}
             startIcon={isSubmitting ? <CircularProgress size={20} /> : null}
           >
