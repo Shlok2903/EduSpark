@@ -1,4 +1,8 @@
-const { Module, Course, QuizAttempt, User } = require('../Models');
+// Import models directly
+const Module = require('../Models/Module');
+const Course = require('../Models/Course');
+const QuizAttempt = require('../Models/QuizAttempt');
+const User = require('../Models/User');
 const mongoose = require('mongoose');
 
 // Get quiz metadata without questions

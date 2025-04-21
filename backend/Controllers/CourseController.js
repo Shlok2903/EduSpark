@@ -28,7 +28,26 @@ const createCourse = async (req, res) => {
 // Get all courses
 const getAllCourses = async (req, res) => {
   try {
-    const courses = await courseService.getAllCourses();
+    const user = req.user;
+    let courses = [];
+    
+    // Admin gets all courses
+    if (user.isAdmin) {
+      courses = await courseService.getAllCourses();
+    }
+    // Teacher gets only courses they created
+    else if (user.isTutor) {
+      courses = await courseService.getCoursesByCreator(user._id);
+    }
+    // Student gets public courses and courses matching their branch/semester
+    else if (user.isStudent) {
+      courses = await courseService.getCoursesForStudent(user._id, user.branch, user.semester);
+    }
+    // Default fallback to public courses only
+    else {
+      const allCourses = await courseService.getAllCourses();
+      courses = allCourses.filter(course => course.visibilityType === 'public');
+    }
     
     res.status(200).json({
       success: true,

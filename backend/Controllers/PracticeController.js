@@ -1,4 +1,7 @@
-const { Practice, Course, Enrollment } = require("../Models");
+// Import models directly
+const Practice = require("../Models/Practice");
+const Course = require("../Models/Course");
+const Enrollment = require("../Models/Enrollment");
 const axios = require("axios");
 const mongoose = require("mongoose");
 
@@ -117,7 +120,7 @@ const generatePracticeQuestions = async (req, res) => {
           model: "gpt-3.5-turbo",
           messages: [{ role: "user", content: prompt }],
           temperature: 0.7,
-          max_tokens: 2500,
+          max_tokens: 7000,
         },
         {
           headers: {

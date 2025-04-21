@@ -172,7 +172,7 @@ const isCreator = async (courseId, userId) => {
  */
 const createCourse = async (courseData, imageBuffer, userId) => {
   try {
-    const { title, description, visibilityType, deadline } = courseData;
+    const { title, description, visibilityType, deadline, branch, semester } = courseData;
     
     // Upload image to cloudinary if provided
     let imageUrl = '';
@@ -184,7 +184,8 @@ const createCourse = async (courseData, imageBuffer, userId) => {
     // Generate a unique course_id
     const course_id = 'CRS_' + new mongoose.Types.ObjectId().toString();
 
-    const course = new Course({
+    // Create course object with basic fields
+    const courseObj = {
       course_id,
       title,
       description,
@@ -193,8 +194,15 @@ const createCourse = async (courseData, imageBuffer, userId) => {
       imageUrl,
       createdBy: userId,
       assignments: [] // Initialize with empty assignments
-    });
+    };
 
+    // Add branch and semester if course is mandatory or optional
+    if (visibilityType === 'mandatory' || visibilityType === 'optional') {
+      if (branch) courseObj.branch = branch;
+      if (semester) courseObj.semester = semester;
+    }
+
+    const course = new Course(courseObj);
     await course.save();
     return course;
   } catch (error) {
@@ -473,8 +481,8 @@ const getAssignedCourses = async (branchId, semesterId) => {
     const courses = await Course.find({
       'assignments': { 
         $elemMatch: { 
-          branchId: mongoose.Types.ObjectId(branchId),
-          semesterId: mongoose.Types.ObjectId(semesterId)
+          branchId: new mongoose.Types.ObjectId(branchId),
+          semesterId: new mongoose.Types.ObjectId(semesterId)
         }
       }
     }).populate('createdBy', 'name email');
@@ -491,7 +499,7 @@ const getAssignedCourses = async (branchId, semesterId) => {
  * @param {string} userId - User ID of the student
  * @param {string} branchId - Student's branch ID
  * @param {string} semesterId - Student's semester ID
- * @returns {Promise<Object>} Object with public, mandatory and optional courses
+ * @returns {Promise<Array>} Combined array of relevant courses for the student
  */
 const getCoursesForStudent = async (userId, branchId, semesterId) => {
   try {
@@ -499,52 +507,68 @@ const getCoursesForStudent = async (userId, branchId, semesterId) => {
     const publicCourses = await Course.find({ visibilityType: 'public' })
       .populate('createdBy', 'name email');
     
-    // Get courses assigned to the student's branch and semester
-    const assignedCourses = await Course.find({
+    // Get courses specifically for the student's branch and semester
+    const branchSemesterCourses = await Course.find({
+      $or: [
+        // Directly assigned branch and semester in the course
+        {
+          visibilityType: { $in: ['mandatory', 'optional'] },
+          branch: new mongoose.Types.ObjectId(branchId),
+          semester: new mongoose.Types.ObjectId(semesterId)
+        },
+        // Assigned via the assignments array
+        {
       'assignments': { 
         $elemMatch: { 
-          branchId: mongoose.Types.ObjectId(branchId),
-          semesterId: mongoose.Types.ObjectId(semesterId)
+              branchId: new mongoose.Types.ObjectId(branchId),
+              semesterId: new mongoose.Types.ObjectId(semesterId)
         }
       }
+        }
+      ]
     }).populate('createdBy', 'name email');
-    
-    // Separate mandatory and optional courses
-    const mandatoryCourses = assignedCourses.filter(
-      course => course.visibilityType === 'mandatory'
-    );
-    
-    const optionalCourses = assignedCourses.filter(
-      course => course.visibilityType === 'optional'
-    );
     
     // Get the student's enrollments to determine enrollment status
     const enrollments = await Enrollment.find({ userId });
     const enrolledCourseIds = enrollments.map(e => e.courseId.toString());
     
-    // Add enrollment status to each course
-    const processedPublicCourses = publicCourses.map(course => ({
+    // Combine public and branch/semester courses, removing duplicates
+    const allCourseMap = new Map();
+    
+    // Add public courses to the map
+    publicCourses.forEach(course => {
+      allCourseMap.set(course._id.toString(), {
       ...course.toObject(),
       isEnrolled: enrolledCourseIds.includes(course._id.toString())
-    }));
+      });
+    });
     
-    const processedMandatoryCourses = mandatoryCourses.map(course => ({
+    // Add branch/semester courses to the map (will overwrite duplicates)
+    branchSemesterCourses.forEach(course => {
+      allCourseMap.set(course._id.toString(), {
       ...course.toObject(),
       isEnrolled: enrolledCourseIds.includes(course._id.toString())
-    }));
+      });
+    });
     
-    const processedOptionalCourses = optionalCourses.map(course => ({
-      ...course.toObject(),
-      isEnrolled: enrolledCourseIds.includes(course._id.toString())
-    }));
-    
-    return {
-      publicCourses: processedPublicCourses,
-      mandatoryCourses: processedMandatoryCourses,
-      optionalCourses: processedOptionalCourses
-    };
+    // Convert map values to array
+    return Array.from(allCourseMap.values());
   } catch (error) {
     throw new Error(`Error fetching courses for student: ${error.message}`);
+  }
+};
+
+/**
+ * Get all public courses
+ * @returns {Promise<Array>} Public courses
+ */
+const getPublicCourses = async () => {
+  try {
+    return await Course.find({ visibilityType: 'public' })
+      .populate('createdBy', 'name email')
+      .sort({ createdAt: -1 });
+  } catch (error) {
+    throw new Error(`Error fetching public courses: ${error.message}`);
   }
 };
 
@@ -562,5 +586,6 @@ module.exports = {
   assignCourse,
   unassignCourse,
   getAssignedCourses,
-  getCoursesForStudent
+  getCoursesForStudent,
+  getPublicCourses
 }; 

@@ -23,6 +23,20 @@ const CourseSchema = new Schema({
     default: 'public',
     required: true
   },
+  branch: {
+    type: Schema.Types.ObjectId,
+    ref: "branches",
+    required: function() {
+      return this.visibilityType === 'mandatory' || this.visibilityType === 'optional';
+    }
+  },
+  semester: {
+    type: Schema.Types.ObjectId,
+    ref: "semesters",
+    required: function() {
+      return this.visibilityType === 'mandatory' || this.visibilityType === 'optional';
+    }
+  },
   deadline: {
     type: Date,
   },

@@ -1,4 +1,8 @@
-const { Enrollment, Course, Section, Module } = require('../Models');
+// Import models directly
+const Enrollment = require('../Models/Enrollment');
+const Course = require('../Models/Course');
+const Section = require('../Models/Section');
+const Module = require('../Models/Module');
 const mongoose = require('mongoose');
 
 // Enroll a user in a course
@@ -21,6 +25,34 @@ exports.enrollCourse = async (req, res) => {
 
     if (existingEnrollment) {
       return res.status(400).json({ message: 'You are already enrolled in this course' });
+    }
+
+    // If course is not public, check if the student's branch and semester match
+    if (course.visibilityType !== 'public' && req.user.isStudent) {
+      const userBranch = req.user.branch;
+      const userSemester = req.user.semester;
+      
+      // For mandatory/optional courses, check if branch and semester match
+      if (course.visibilityType === 'mandatory' || course.visibilityType === 'optional') {
+        if (!course.branch.equals(userBranch) || !course.semester.equals(userSemester)) {
+          return res.status(403).json({ 
+            message: 'You cannot enroll in this course as it is not for your branch/semester' 
+          });
+        }
+      }
+      
+      // For courses assigned to specific branch/semester combinations
+      if (course.assignments && course.assignments.length > 0) {
+        const isAssignedToUser = course.assignments.some(assignment => 
+          assignment.branchId.equals(userBranch) && assignment.semesterId.equals(userSemester)
+        );
+        
+        if (!isAssignedToUser) {
+          return res.status(403).json({ 
+            message: 'This course is not assigned to your branch/semester' 
+          });
+        }
+      }
     }
 
     // Get all sections and modules to build the initial progress structure

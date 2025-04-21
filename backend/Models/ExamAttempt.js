@@ -1,33 +1,38 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
-// Answer Schema
+// Answer Schema (unified for all question types)
 const AnswerSchema = new Schema({
   questionId: {
     type: Schema.Types.ObjectId,
     required: true
   },
-  answer: {
-    type: Schema.Types.Mixed, // Can be string for text, number for mcq index, or file path for file uploads
-    default: null
-  },
+  // For MCQ: selectedOption is the index of selected answer
   selectedOption: {
-    type: Number,  // Index of the selected option for MCQs
+    type: Number,
     default: null
   },
+  // For subjective questions: answer contains text
+  answer: {
+    type: String,
+    default: ""
+  },
+  // For file upload questions
   filePath: {
-    type: String,  // Path to uploaded file for file type questions
+    type: String,
     default: null
+  },
+  fileName: String,
+  // Grading fields
+  isGraded: {
+    type: Boolean,
+    default: false
   },
   marksAwarded: {
     type: Number,
     default: 0
   },
-  feedback: String,
-  isGraded: {
-    type: Boolean,
-    default: false
-  }
+  feedback: String
 });
 
 // Section Attempt Schema
@@ -40,10 +45,6 @@ const SectionAttemptSchema = new Schema({
   totalMarksAwarded: {
     type: Number,
     default: 0
-  },
-  isCompleted: {
-    type: Boolean,
-    default: false
   }
 });
 
@@ -59,34 +60,24 @@ const ExamAttemptSchema = new Schema({
     ref: 'users',
     required: true
   },
-  courseId: {
-    type: Schema.Types.ObjectId,
-    ref: 'courses',
-    required: true
-  },
   startTime: {
     type: Date,
     default: Date.now
   },
-  endTime: Date,
-  duration: {
-    type: Number, // in minutes, copied from exam
-    required: true
-  },
-  timeRemaining: {
-    type: Number, // in seconds
-    required: true
+  completedTime: {
+    type: Date,
+    default: null
   },
   status: {
     type: String,
     enum: ['in-progress', 'submitted', 'timed-out', 'graded'],
     default: 'in-progress'
   },
-  sections: [SectionAttemptSchema],
-  totalMarks: {
-    type: Number,
+  timeRemaining: {
+    type: Number, // in seconds
     default: 0
   },
+  sections: [SectionAttemptSchema],
   totalMarksAwarded: {
     type: Number,
     default: 0
@@ -99,8 +90,11 @@ const ExamAttemptSchema = new Schema({
     type: Boolean,
     default: false
   },
-  submittedAt: Date,
-  lastUpdated: {
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  updatedAt: {
     type: Date,
     default: Date.now
   }
@@ -113,23 +107,40 @@ ExamAttemptSchema.pre('save', function(next) {
     
     this.sections.forEach(section => {
       let sectionMarks = 0;
+      
+      // Add up marks from all answers
       section.answers.forEach(answer => {
         sectionMarks += answer.marksAwarded || 0;
       });
+      
       section.totalMarksAwarded = sectionMarks;
       totalMarksAwarded += sectionMarks;
     });
     
     this.totalMarksAwarded = totalMarksAwarded;
-    
-    if (this.totalMarks > 0) {
-      this.percentage = (totalMarksAwarded / this.totalMarks) * 100;
-    }
   }
   
-  this.lastUpdated = Date.now();
+  this.updatedAt = Date.now();
   next();
 });
+
+// Method to check if all questions are graded
+ExamAttemptSchema.methods.checkIfFullyGraded = function() {
+  let isFullyGraded = true;
+  
+  for (const section of this.sections) {
+    for (const answer of section.answers) {
+      if (!answer.isGraded) {
+        isFullyGraded = false;
+        break;
+      }
+    }
+    
+    if (!isFullyGraded) break;
+  }
+  
+  return isFullyGraded;
+};
 
 const ExamAttemptModel = mongoose.model('examAttempts', ExamAttemptSchema);
 module.exports = ExamAttemptModel; 

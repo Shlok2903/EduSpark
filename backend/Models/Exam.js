@@ -1,45 +1,69 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
+// Question Schema - Options for MCQ
+const OptionSchema = new Schema({
+  text: {
+    type: String,
+    required: true
+  }
+});
+
 // Question Schema
 const QuestionSchema = new Schema({
   type: {
     type: String,
-    enum: ['mcq', 'subjective', 'file', 'fileUpload'],
+    enum: ['mcq', 'subjective', 'fileUpload'],
     required: true
   },
   question: {
     type: String,
     required: true
   },
-  options: [{
-    text: String,
-    isCorrect: Boolean
-  }],
+  // MCQ specific fields
+  options: {
+    type: [OptionSchema],
+    required: function() { return this.type === 'mcq'; }
+  },
+  correct_option: {
+    type: Number,  // Index of the correct option
+    min: 0,
+    required: function() { return this.type === 'mcq'; }
+  },
+  positiveMarks: {
+    type: Number,
+    required: function() { return this.type === 'mcq'; },
+    default: 1
+  },
+  negativeMarks: {
+    type: Number,
+    default: 0
+  },
+  // Subjective and FileUpload fields
   marks: {
     type: Number,
-    required: true,
-    default: 1
+    required: function() { return this.type === 'subjective' || this.type === 'fileUpload'; },
+    default: 0
+  },
+  desc: {
+    type: String  // Optional description for subjective and fileUpload
   },
   fileType: {
     type: String,
-    enum: ['pdf', 'doc', 'image', 'code', 'any'],
-    default: 'any'
+    enum: ['pdf', 'doc', 'docx', 'zip', 'image', 'all'],
+    default: 'all',
+    required: function() { return this.type === 'fileUpload'; }
   }
 });
 
 // Section Schema
 const SectionSchema = new Schema({
-  title: {
+  name: {
     type: String,
     required: true
   },
   description: String,
-  questions: [QuestionSchema],
-  totalMarks: {
-    type: Number,
-    default: 0
-  }
+  questions: [QuestionSchema]
 });
 
 // Exam Schema
@@ -59,14 +83,9 @@ const ExamSchema = new Schema({
     ref: 'users',
     required: true
   },
-  sections: [SectionSchema],
-  totalMarks: {
-    type: Number,
-    default: 0
-  },
-  duration: {
-    type: Number, // in minutes
-    required: true
+  isPublished: {
+    type: Boolean,
+    default: false
   },
   startTime: {
     type: Date,
@@ -76,32 +95,53 @@ const ExamSchema = new Schema({
     type: Date,
     required: true
   },
-  isPublished: {
+  duration: {
+    type: Number, // in minutes
+    required: true
+  },
+  total_marks: {
+    type: Number,
+    default: 0
+  },
+  negativeMarking: {
     type: Boolean,
     default: false
   },
+  sections: [SectionSchema],
   createdAt: {
     type: Date,
     default: Date.now
   },
-  updatedAt: Date
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  },
+  passingMarks: {
+    type: Number,
+    default: 0
+  },
+  instructions: {
+    type: String,
+    default: ''
+  }
 });
 
 // Pre-save hook to calculate total marks
 ExamSchema.pre('save', function(next) {
   let totalMarks = 0;
   
-  // Calculate total marks for each section
+  // Calculate total marks for the exam
   this.sections.forEach(section => {
-    let sectionMarks = 0;
     section.questions.forEach(question => {
-      sectionMarks += question.marks;
+      if (question.type === 'mcq') {
+        totalMarks += question.positiveMarks;
+      } else {
+        totalMarks += question.marks;
+      }
     });
-    section.totalMarks = sectionMarks;
-    totalMarks += sectionMarks;
   });
   
-  this.totalMarks = totalMarks;
+  this.total_marks = totalMarks;
   this.updatedAt = Date.now();
   next();
 });

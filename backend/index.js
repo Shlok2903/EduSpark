@@ -4,6 +4,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 
 // Import routes
 const authRouter = require('./Routes/AuthRouter');
@@ -17,6 +18,7 @@ const quizRoutes = require('./Routes/quizRoutes');
 const studentRouter = require('./Routes/StudentRouter');
 const branchRouter = require('./Routes/BranchRouter');
 const semesterRouter = require('./Routes/SemesterRouter');
+const gradeRouter = require('./Routes/gradeRoutes');
 
 require('dotenv').config();
 
@@ -46,6 +48,21 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 app.use('/uploads', express.static('uploads'));
 
+// Check if upload directories exist, create them if not
+const uploadDirs = [
+  path.join(__dirname, 'uploads'),
+  path.join(__dirname, 'uploads/exams'),
+  path.join(__dirname, 'uploads/profiles'),
+  path.join(__dirname, 'uploads/courses')
+];
+
+uploadDirs.forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    console.log(`Creating upload directory: ${dir}`);
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
+
 // Use routes
 app.use('/auth', authRouter);
 app.use('/courses', courseRouter);
@@ -58,6 +75,7 @@ app.use('/api/quizzes', quizRoutes);
 app.use('/students', studentRouter);
 app.use('/branches', branchRouter);
 app.use('/semesters', semesterRouter);
+app.use('/grades', gradeRouter);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

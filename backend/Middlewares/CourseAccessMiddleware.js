@@ -1,4 +1,7 @@
-const { Course, Enrollment, Section, Module } = require('../Models');
+const Course = require('../Models/Course');
+const Enrollment = require('../Models/Enrollment');
+const Section = require('../Models/Section');
+const Module = require('../Models/Module');
 
 /**
  * Middleware to check if user is the course creator

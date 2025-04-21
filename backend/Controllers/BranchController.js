@@ -77,18 +77,30 @@ exports.getAllBranchesWithSemesters = async (req, res) => {
 // Create new branch
 exports.createBranch = async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, code } = req.body;
     if (!name) {
       return res.status(400).json({ success: false, message: 'Branch name is required' });
     }
+    
+    if (!code) {
+      return res.status(400).json({ success: false, message: 'Branch code is required' });
+    }
 
-    const existingBranch = await Branch.findOne({ name: name.trim() });
-    if (existingBranch) {
+    // Check for existing branch with same name
+    const existingBranchName = await Branch.findOne({ name: name.trim() });
+    if (existingBranchName) {
       return res.status(400).json({ success: false, message: 'Branch with this name already exists' });
+    }
+    
+    // Check for existing branch with same code
+    const existingBranchCode = await Branch.findOne({ code: code.trim() });
+    if (existingBranchCode) {
+      return res.status(400).json({ success: false, message: 'Branch with this code already exists' });
     }
 
     const newBranch = new Branch({
       name: name.trim(),
+      code: code.trim(),
       description: description ? description.trim() : '',
     });
 
@@ -103,26 +115,41 @@ exports.createBranch = async (req, res) => {
 // Update branch
 exports.updateBranch = async (req, res) => {
   try {
-    const { name, description, isActive } = req.body;
+    const { name, description, code, isActive } = req.body;
     
     if (!name) {
       return res.status(400).json({ success: false, message: 'Branch name is required' });
     }
+    
+    if (!code) {
+      return res.status(400).json({ success: false, message: 'Branch code is required' });
+    }
 
     // Check if another branch already has this name
-    const existingBranch = await Branch.findOne({ 
+    const existingBranchName = await Branch.findOne({ 
       name: name.trim(), 
       _id: { $ne: req.params.id } 
     });
     
-    if (existingBranch) {
+    if (existingBranchName) {
       return res.status(400).json({ success: false, message: 'Another branch with this name already exists' });
+    }
+    
+    // Check if another branch already has this code
+    const existingBranchCode = await Branch.findOne({ 
+      code: code.trim(), 
+      _id: { $ne: req.params.id } 
+    });
+    
+    if (existingBranchCode) {
+      return res.status(400).json({ success: false, message: 'Another branch with this code already exists' });
     }
 
     const updatedBranch = await Branch.findByIdAndUpdate(
       req.params.id,
       { 
-        name: name.trim(), 
+        name: name.trim(),
+        code: code.trim(),
         description: description ? description.trim() : '',
         isActive: isActive !== undefined ? isActive : true,
         updatedAt: Date.now()
