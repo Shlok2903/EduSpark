@@ -21,13 +21,14 @@ import StudentPractice from './components/practice/StudentPractice';
 import ManageExams from './components/exams/teacher/ManageExams';
 import CreateExam from './components/exams/teacher/CreateExam';
 import StudentExams from './components/exams/student/StudentExams';
-import TakeExam from './components/exams/student/TakeExam';
 import ExamResult from './components/exams/student/ExamResult';
-import StrictModeQuiz from './components/exams/student/StrictModeQuiz';
+import ExamAttempt from './components/exams/student/ExamAttempt';
 import FullScreenQuiz from './components/quizzes/student/FullScreenQuiz';
 import EditCourse from './components/courses/teacher/EditCourse';
 import StudentManagement from './components/students/StudentManagement';
 import AdminSettings from './components/admin/AdminSettings';
+import ProgressDashboard from './pages/ResultPage';
+import StudentDashboard from './pages/StudentDashboard';
 import './App.css';
 
 // Create a custom theme for Material UI components
@@ -308,48 +309,21 @@ function App() {
               />
               
               <Route
-                path="/exams/take/:examId"
-                element={
-                  <StudentRoute>
-                    <TakeExam />
-                  </StudentRoute>
-                }
-              />
-              
-              {/* Strict Mode Quiz/Exam Routes */}
-              <Route
-                path="/strict/quiz/:quizId"
-                element={
-                  <DirectStudentRoute>
-                    <StrictModeQuiz />
-                  </DirectStudentRoute>
-                }
-              />
-              
-              <Route
-                path="/strict/exam/:examId"
-                element={
-                  <DirectStudentRoute>
-                    <StrictModeQuiz />
-                  </DirectStudentRoute>
-                }
-              />
-              
-              <Route
-                path="/strict/exam/:examId/attempt/:attemptId"
-                element={
-                  <DirectStudentRoute>
-                    <StrictModeQuiz />
-                  </DirectStudentRoute>
-                }
-              />
-              
-              <Route
                 path="/exams/result/:attemptId"
                 element={
                   <StudentRoute>
                     <ExamResult />
                   </StudentRoute>
+                }
+              />
+              
+              {/* Exam Attempt Route */}
+              <Route
+                path="/exams/attempt/:examId"
+                element={
+                  <DirectStudentRoute>
+                    <ExamAttempt />
+                  </DirectStudentRoute>
                 }
               />
               
@@ -372,12 +346,13 @@ function App() {
                 }
               />
               
+              {/* Result Page - Accessible to students */}
               <Route
-                path="/results"
+                path="/progress"
                 element={
-                  <ProtectedRoute>
-                    <div>Results Page (Coming Soon)</div>
-                  </ProtectedRoute>
+                  <StudentRoute>
+                    <StudentDashboard />
+                  </StudentRoute>
                 }
               />
               

@@ -56,7 +56,7 @@ function Sidebar() {
                 </div>
                 
                 {/* Different course navigation for tutors vs students/admin */}
-                {isTutor && !isAdmin ? (
+                {isTutor || isAdmin ? (
                     <div className={`nav-item ${activeTab === '/courses' ? 'active' : ''}`} onClick={() => handleNavigation('/courses')}>
                         <SchoolIcon sx={{ fontSize: 20 }} />
                         <span>Manage Courses</span>
@@ -75,7 +75,7 @@ function Sidebar() {
                     <DescriptionIcon sx={{ fontSize: 20 }} />
                     <span>Exams</span>
                 </div>
-                <div className={`nav-item ${activeTab === '/results' ? 'active' : ''}`} onClick={() => handleNavigation('/results')}>
+                <div className={`nav-item ${activeTab === '/progress' ? 'active' : ''}`} onClick={() => handleNavigation('/progress')}>
                     <AssessmentIcon sx={{ fontSize: 20 }} />
                     <span>Results</span>
                 </div>
@@ -94,10 +94,7 @@ function Sidebar() {
 
                 {isAdmin && (
                     <>
-                        <div className={`nav-item ${activeTab === '/dashboard/courses/add' ? 'active' : ''}`} onClick={() => handleNavigation('/dashboard/courses/add')}>
-                            <AddCircleOutlineIcon sx={{ fontSize: 20 }} />
-                            <span>Add Course</span>
-                        </div>
+                        
                         <div className={`nav-item ${activeTab === '/exams/manage' ? 'active' : ''}`} onClick={() => handleNavigation('/exams/manage')}>
                             <LibraryBooksIcon sx={{ fontSize: 20 }} />
                             <span>Manage Exams</span>

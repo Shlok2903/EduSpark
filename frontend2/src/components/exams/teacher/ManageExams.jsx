@@ -100,11 +100,22 @@ const ManageExams = () => {
       setLoading(true);
       const response = await examService.getExamsByCourse(courseId);
       if (response) {
-        setExams(response);
+        // Make sure we're setting an array to the exams state
+        // Handle both direct data and response.data formats
+        if (response.data) {
+          setExams(Array.isArray(response.data) ? response.data : []);
+        } else {
+          setExams(Array.isArray(response) ? response : []);
+        }
+      } else {
+        // Fallback to empty array if response is falsy
+        setExams([]);
       }
     } catch (error) {
       console.error('Failed to fetch exams:', error);
       toast.error('Could not load exams for this course.');
+      // Always set to empty array on error to avoid map issues
+      setExams([]);
     } finally {
       setLoading(false);
     }

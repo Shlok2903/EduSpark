@@ -22,11 +22,11 @@ const StudentList = ({ onAddStudentClick, refreshTrigger }) => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState({
     semester: '',
-    degree: ''
+    branch: ''
   });
   const [filterOptions, setFilterOptions] = useState({
     semesters: [],
-    degrees: []
+    branches: []
   });
 
   // Fetch students and filter options
@@ -37,16 +37,18 @@ const StudentList = ({ onAddStudentClick, refreshTrigger }) => {
         // Fetch filter options
         const filterResponse = await studentService.getFilterOptions();
         if (filterResponse.success) {
+          console.log('Filter options received:', filterResponse.filters);
           setFilterOptions(filterResponse.filters);
         }
 
         // Fetch students with applied filters
         const params = {};
         if (filter.semester) params.semester = filter.semester;
-        if (filter.degree) params.degree = filter.degree;
+        if (filter.branch) params.branch = filter.branch;
         
         const response = await studentService.getStudents(params);
         if (response.success) {
+          console.log('Students data received:', response.students.slice(0, 2));
           setStudents(response.students);
         }
       } catch (error) {
@@ -72,7 +74,7 @@ const StudentList = ({ onAddStudentClick, refreshTrigger }) => {
   const handleClearFilters = () => {
     setFilter({
       semester: '',
-      degree: ''
+      branch: ''
     });
   };
 
@@ -94,8 +96,8 @@ const StudentList = ({ onAddStudentClick, refreshTrigger }) => {
             >
               <MenuItem value="">All Semesters</MenuItem>
               {filterOptions.semesters.map((semester) => (
-                <MenuItem key={semester} value={semester}>
-                  {semester}
+                <MenuItem key={semester._id} value={semester._id}>
+                  {semester.name}
                 </MenuItem>
               ))}
             </TextField>
@@ -104,17 +106,15 @@ const StudentList = ({ onAddStudentClick, refreshTrigger }) => {
             <TextField
               select
               fullWidth
-            
-              label="Degree"
-              name="degree"
-              
-              value={filter.degree}
+              label="Branch"
+              name="branch"
+              value={filter.branch}
               onChange={handleFilterChange}
             >
-              <MenuItem  value="">All Degrees</MenuItem>
-              {filterOptions.degrees.map((degree) => (
-                <MenuItem key={degree} value={degree}>
-                  {degree}
+              <MenuItem value="">All Branches</MenuItem>
+              {filterOptions.branches.map((branch) => (
+                <MenuItem key={branch._id} value={branch._id}>
+                  {branch.name}
                 </MenuItem>
               ))}
             </TextField>
@@ -159,22 +159,33 @@ const StudentList = ({ onAddStudentClick, refreshTrigger }) => {
                   <TableCell><Typography fontWeight="bold">Name</Typography></TableCell>
                   <TableCell><Typography fontWeight="bold">Email</Typography></TableCell>
                   <TableCell><Typography fontWeight="bold">Semester</Typography></TableCell>
-                  <TableCell><Typography fontWeight="bold">Degree</Typography></TableCell>
+                  <TableCell><Typography fontWeight="bold">Branch</Typography></TableCell>
                   <TableCell><Typography fontWeight="bold">Parent Name</Typography></TableCell>
                   <TableCell><Typography fontWeight="bold">Parent Email</Typography></TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {students.map((student) => (
-                  <TableRow key={student._id} hover>
-                    <TableCell>{student.name}</TableCell>
-                    <TableCell>{student.email}</TableCell>
-                    <TableCell>{student.semester}</TableCell>
-                    <TableCell>{student.degree}</TableCell>
-                    <TableCell>{student.parentName}</TableCell>
-                    <TableCell>{student.parentEmail}</TableCell>
-                  </TableRow>
-                ))}
+                {students.map((student) => {
+                  // Extract branch and semester names safely
+                  const branchName = student.branch && typeof student.branch === 'object' 
+                    ? student.branch.name 
+                    : (typeof student.branch === 'string' ? student.branch : 'N/A');
+                    
+                  const semesterName = student.semester && typeof student.semester === 'object'
+                    ? student.semester.name
+                    : (typeof student.semester === 'string' ? student.semester : 'N/A');
+                    
+                  return (
+                    <TableRow key={student._id} hover>
+                      <TableCell>{student.name}</TableCell>
+                      <TableCell>{student.email}</TableCell>
+                      <TableCell>{semesterName}</TableCell>
+                      <TableCell>{branchName}</TableCell>
+                      <TableCell>{student.parentName}</TableCell>
+                      <TableCell>{student.parentEmail}</TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}

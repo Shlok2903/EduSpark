@@ -18,7 +18,11 @@ const CourseCard = ({
   userRole = 'student',
   action = null
 }) => {
+  // Add debug logging
+  console.log('CourseCard received:', { course, userRole });
+  
   if (!course) {
+    console.warn('CourseCard received null course');
     return null;
   }
 
@@ -45,6 +49,21 @@ const CourseCard = ({
     }
   };
 
+  // Get instructor name from various possible formats
+  const getInstructorName = () => {
+    if (course.instructor) return course.instructor;
+    if (course.createdBy?.name) return course.createdBy.name;
+    
+    // Handle different property names that might contain instructor info
+    const possibleProps = ['teacher', 'tutor', 'author', 'createdBy'];
+    for (const prop of possibleProps) {
+      if (course[prop]?.name) return course[prop].name;
+      if (typeof course[prop] === 'string') return course[prop];
+    }
+    
+    return 'Unknown Instructor';
+  };
+
   return (
     <Card className="course-card">
       {renderCardTop()}
@@ -60,21 +79,23 @@ const CourseCard = ({
           </Typography>
           
           <Typography variant="body2" className="course-card-instructor">
-            {course.instructor || 'Unknown Instructor'}
+            {getInstructorName()}
           </Typography>
         </div>
         
-        <Box className="course-progress">
-          <Box display="flex" justifyContent="space-between">
-            <Typography variant="caption">Progress</Typography>
-            <Typography variant="caption">{isEnrolled ? progress : 0}%</Typography>
+        {userRole === 'student' && (
+          <Box className="course-progress">
+            <Box display="flex" justifyContent="space-between">
+              <Typography variant="caption">Progress</Typography>
+              <Typography variant="caption">{isEnrolled ? progress : 0}%</Typography>
+            </Box>
+            <LinearProgress 
+              variant="determinate" 
+              value={isEnrolled ? progress : 0} 
+              className="progress-bar"
+            />
           </Box>
-          <LinearProgress 
-            variant="determinate" 
-            value={isEnrolled ? progress : 0} 
-            className="progress-bar"
-          />
-        </Box>
+        )}
         
         {action && (
           <Box className="course-card-actions">

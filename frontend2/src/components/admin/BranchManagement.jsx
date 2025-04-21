@@ -54,6 +54,7 @@ const BranchManagement = () => {
   const [dialogMode, setDialogMode] = useState('add'); // 'add' or 'edit'
   const [formData, setFormData] = useState({
     name: '',
+    code: '',
     description: '',
     isActive: true
   });
@@ -158,6 +159,9 @@ const BranchManagement = () => {
     if (!formData.name.trim()) {
       errors.name = 'Branch name is required';
     }
+    if (!formData.code.trim()) {
+      errors.code = 'Branch code is required';
+    }
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -185,6 +189,7 @@ const BranchManagement = () => {
   const handleOpenAddDialog = () => {
     setFormData({
       name: '',
+      code: '',
       description: '',
       isActive: true
     });
@@ -197,6 +202,7 @@ const BranchManagement = () => {
   const handleOpenEditDialog = (branch) => {
     setFormData({
       name: branch.name,
+      code: branch.code || '',
       description: branch.description || '',
       isActive: branch.isActive
     });
@@ -468,7 +474,21 @@ const BranchManagement = () => {
                         </IconButton>
                       </Box>
                     }
-                    subheader={branch.description || 'No description provided'}
+                    subheader={
+                      <>
+                        <Typography variant="body2" component="span" fontWeight="medium">
+                          Code: {branch.code || 'N/A'}
+                        </Typography>
+                        {branch.description && (
+                          <>
+                            <br />
+                            <Typography variant="body2" component="span" color="textSecondary">
+                              {branch.description}
+                            </Typography>
+                          </>
+                        )}
+                      </>
+                    }
                   />
                   <Divider />
                   <Collapse in={expandedBranches[branch._id] || false}>
@@ -569,6 +589,18 @@ const BranchManagement = () => {
                 margin="normal"
                 error={!!formErrors.name}
                 helperText={formErrors.name}
+                disabled={isSubmitting}
+                required
+              />
+              <TextField
+                fullWidth
+                label="Branch Code"
+                name="code"
+                value={formData.code}
+                onChange={handleChange}
+                margin="normal"
+                error={!!formErrors.code}
+                helperText={formErrors.code}
                 disabled={isSubmitting}
                 required
               />

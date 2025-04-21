@@ -1,6 +1,8 @@
 .edit-course-container {
   padding-top: 2rem;
   padding-bottom: 3rem;
+  max-height: 100vh;
+  overflow-y: auto;
 }
 
 .breadcrumbs {
@@ -28,6 +30,8 @@
 .form-paper {
   padding: 2rem;
   border-radius: 8px;
+  max-height: 80vh;
+  overflow-y: auto;
 }
 
 .image-section {
@@ -82,4 +86,35 @@
   justify-content: flex-end;
   gap: 1rem;
   margin-top: 1rem;
+}
+
+/* Custom Scrollbar Styling */
+.edit-course-container::-webkit-scrollbar,
+.form-paper::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.edit-course-container::-webkit-scrollbar-track,
+.form-paper::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.edit-course-container::-webkit-scrollbar-thumb,
+.form-paper::-webkit-scrollbar-thumb {
+  background: #FDC886;
+  border-radius: 10px;
+}
+
+.edit-course-container::-webkit-scrollbar-thumb:hover,
+.form-paper::-webkit-scrollbar-thumb:hover {
+  background: #e6b678;
+}
+
+/* Firefox scrollbar styling */
+.edit-course-container,
+.form-paper {
+  scrollbar-width: thin;
+  scrollbar-color: #FDC886 #f1f1f1;
 } 

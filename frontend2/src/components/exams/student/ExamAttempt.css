@@ -1,0 +1,191 @@
+.exam-attempt-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  background-color: #f5f5f5;
+}
+
+.exam-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background-color: white;
+}
+
+.exam-title {
+  font-weight: 500;
+}
+
+.exam-timer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  background-color: #f0f0f0;
+}
+
+.exam-timer svg {
+  margin-right: 4px;
+}
+
+.exam-content {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.question-list {
+  padding: 1rem;
+  height: calc(100vh - 180px);
+  position: sticky;
+  top: 90px;
+}
+
+.question-list-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+  gap: 0.5rem;
+  margin-top: 1rem;
+  max-height: calc(100% - 60px);
+  overflow-y: auto;
+}
+
+.question-list-item {
+  min-width: 40px;
+  height: 40px;
+  padding: 0;
+}
+
+.question-card {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+}
+
+.question-card .MuiCardContent-root {
+  padding: 1.5rem;
+}
+
+.question-options {
+  margin-top: 1.5rem;
+  width: 100%;
+}
+
+.question-option {
+  margin-bottom: 0.8rem;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.question-option:hover {
+  background-color: #f5f5f5;
+}
+
+.question-navigation {
+  display: flex;
+  justify-content: space-between;
+  margin: 1.5rem 0;
+}
+
+.exam-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2rem;
+}
+
+.submit-button {
+  padding: 0.6rem 1.5rem;
+}
+
+.exam-loading-container, .exam-error-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+}
+
+.short-answer-field, .long-answer-field {
+  margin-top: 1rem;
+}
+
+.subjective-answer-field, .file-upload-container {
+  margin-top: 1.5rem;
+}
+
+/* File upload styling */
+.file-upload-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  margin-top: 1.5rem;
+}
+
+.upload-button {
+  margin-top: 0.5rem !important;
+  background-color: #4caf50 !important;
+  color: white !important;
+  padding: 8px 16px !important;
+}
+
+.upload-button:hover {
+  background-color: #388e3c !important;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  background-color: white;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.file-info .MuiSvgIcon-root {
+  color: #3f51b5;
+  margin-right: 8px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 960px) {
+  .question-list {
+    height: auto;
+    max-height: 200px;
+    position: relative;
+    top: 0;
+    margin-bottom: 1.5rem;
+  }
+  
+  .question-list-items {
+    max-height: 140px;
+  }
+  
+  .exam-header {
+    padding: 1rem;
+  }
+  
+  .exam-content {
+    padding: 1rem;
+  }
+}
+
+/* Animation for the timer when time is running low */
+@keyframes pulseRed {
+  0% { color: inherit; }
+  50% { color: #f44336; }
+  100% { color: inherit; }
+}
+
+.exam-timer.low-time {
+  animation: pulseRed 1s infinite;
+} 

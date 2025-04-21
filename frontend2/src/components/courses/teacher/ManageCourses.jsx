@@ -38,6 +38,8 @@ const ManageCourses = () => {
   const fetchCourses = async () => {
     try {
       setLoading(true);
+      setError('');
+      
       let response;
       
       // If admin, get all courses, else get only tutor's courses
@@ -47,15 +49,25 @@ const ManageCourses = () => {
         response = await courseService.getCoursesByTutor(userId);
       }
       
-      // The response is already the data because of the axios interceptor
-      if (response.success) {
+      console.log('Course API response:', response);
+      
+      // Check if response has data and handle different response structures
+      if (response.success && response.data) {
+        console.log('Setting courses from response.data:', response.data.length);
+        setCourses(response.data);
+      } else if (Array.isArray(response)) {
+        console.log('Setting courses from array response:', response.length);
+        setCourses(response);
+      } else if (response.data && Array.isArray(response.data)) {
+        console.log('Setting courses from response.data array:', response.data.length);
         setCourses(response.data);
       } else {
-        setError('Failed to load courses');
+        console.error('Unexpected response format:', response);
+        setError('Failed to load courses - unexpected data format');
       }
     } catch (err) {
       console.error('Error fetching courses:', err);
-      setError('Failed to fetch courses. Please try again later.');
+      setError('Failed to fetch courses: ' + (err.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -130,46 +142,58 @@ const ManageCourses = () => {
       <Box className="courses-grid-container">
         {courses.length > 0 ? (
           <Grid container spacing={3}>
-            {courses.map((course) => (
-              <Grid item xs={12} sm={6} md={4} key={course.id || course._id}>
-                <Box className="course-card-wrapper">
-                  <CourseCard
-                    course={course}
-                    userRole="teacher"
-                  />
-                  <Box className="course-actions">
-                    <ButtonGroup 
-                      variant="outlined" 
-                      fullWidth
-                      className="action-buttons"
-                    >
-                      <Button 
-                        startIcon={<EditIcon />}
-                        onClick={() => handleEditCourse(course.id || course._id)}
-                        className="edit-button"
+            {courses.map((course) => {
+              // Format course data for CourseCard
+              const formattedCourse = {
+                id: course._id,
+                title: course.title,
+                description: course.description,
+                imageUrl: course.imageUrl,
+                instructor: course.createdBy?.name || "Unknown Instructor",
+                isOptional: course.visibilityType === 'optional'
+              };
+              
+              return (
+                <Grid item xs={12} sm={6} md={4} key={course._id}>
+                  <Box className="course-card-wrapper">
+                    <CourseCard
+                      course={formattedCourse}
+                      userRole="teacher"
+                    />
+                    <Box className="course-actions">
+                      <ButtonGroup 
+                        variant="outlined" 
+                        fullWidth
+                        className="action-buttons"
                       >
-                        Edit
-                      </Button>
-                      <Button
-                        startIcon={<AssignIcon />}
-                        onClick={() => handleAssignCourse(course.id || course._id)}
-                        className="assign-button"
-                      >
-                        Assign
-                      </Button>
-                      <Button
-                        startIcon={<DeleteIcon />}
-                        color="error"
-                        onClick={() => handleDeleteCourse(course.id || course._id)}
-                        className="delete-button"
-                      >
-                        Delete
-                      </Button>
-                    </ButtonGroup>
+                        <Button 
+                          startIcon={<EditIcon />}
+                          onClick={() => handleEditCourse(course._id)}
+                          className="edit-button"
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          startIcon={<AssignIcon />}
+                          onClick={() => handleAssignCourse(course._id)}
+                          className="assign-button"
+                        >
+                          Assign
+                        </Button>
+                        <Button
+                          startIcon={<DeleteIcon />}
+                          color="error"
+                          onClick={() => handleDeleteCourse(course._id)}
+                          className="delete-button"
+                        >
+                          Delete
+                        </Button>
+                      </ButtonGroup>
+                    </Box>
                   </Box>
-                </Box>
-              </Grid>
-            ))}
+                </Grid>
+              );
+            })}
           </Grid>
         ) : (
           <Box className="no-courses-message">

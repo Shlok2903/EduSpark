@@ -384,3 +384,39 @@
     padding-bottom: 75%; /* 4:3 aspect ratio for smaller screens */
   }
 }
+
+/* Custom Scrollbar Styling */
+.course-detail-container::-webkit-scrollbar,
+.module-content-body::-webkit-scrollbar,
+.course-content-paper::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.course-detail-container::-webkit-scrollbar-track,
+.module-content-body::-webkit-scrollbar-track,
+.course-content-paper::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.course-detail-container::-webkit-scrollbar-thumb,
+.module-content-body::-webkit-scrollbar-thumb,
+.course-content-paper::-webkit-scrollbar-thumb {
+  background: #FDC886;
+  border-radius: 10px;
+}
+
+.course-detail-container::-webkit-scrollbar-thumb:hover,
+.module-content-body::-webkit-scrollbar-thumb:hover,
+.course-content-paper::-webkit-scrollbar-thumb:hover {
+  background: #e6b678;
+}
+
+/* Firefox scrollbar styling */
+.course-detail-container,
+.module-content-body,
+.course-content-paper {
+  scrollbar-width: thin;
+  scrollbar-color: #FDC886 #f1f1f1;
+}

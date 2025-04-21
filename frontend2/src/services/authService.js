@@ -150,7 +150,21 @@ const authService = {
   getUserData,
   checkAuthStatus,
   setAuthToken,
-  storeUserSession
+  storeUserSession,
+  
+  // Add getCurrentUser method inside the authService object
+  getCurrentUser: async () => {
+    try {
+      const response = await api.get('/auth/me');
+      return response;
+    } catch (error) {
+      console.error('Error fetching current user:', error);
+      return { 
+        success: false, 
+        message: error.formattedMessage || 'Failed to fetch user data'
+      };
+    }
+  }
 };
 
 export default authService; 

@@ -37,9 +37,15 @@ const ExamBasicInfo = (props) => {
   const fetchCourses = async () => {
     try {
       setLoading(true);
+      console.log('Fetching courses for exam dropdown...');
       const response = await courseService.getTeacherCourses();
-      if (response.data) {
+      console.log('Teacher courses response:', response);
+      
+      if (response.success && response.data) {
+        console.log('Setting courses:', response.data);
         setCourses(response.data);
+      } else {
+        console.error('Failed to fetch courses: No data in response', response);
       }
     } catch (error) {
       console.error('Failed to fetch courses:', error);
@@ -111,13 +117,24 @@ const ExamBasicInfo = (props) => {
               required
               disabled={loading}
             >
-              {courses.map((course) => (
+              {courses && courses.length > 0 ? (
+                courses.map((course) => (
                 <MenuItem key={course._id} value={course._id}>
                   {course.title}
+                  </MenuItem>
+                ))
+              ) : (
+                <MenuItem disabled value="">
+                  {loading ? 'Loading courses...' : 'No courses available'}
                 </MenuItem>
-              ))}
+              )}
             </Select>
             {displayErrors.courseId && <FormHelperText>{displayErrors.courseId}</FormHelperText>}
+            {!loading && (!courses || courses.length === 0) && (
+              <FormHelperText>
+                No courses found. Please create a course first before creating an exam.
+              </FormHelperText>
+            )}
           </FormControl>
         </Grid>
         
@@ -148,7 +165,7 @@ const ExamBasicInfo = (props) => {
           />
         </Grid>
         
-        <Grid item xs={12} sm={6} md={4}>
+        <Grid item xs={12} md={6}>
           <TextField
             name="duration"
             label="Duration (minutes)"
@@ -156,28 +173,27 @@ const ExamBasicInfo = (props) => {
             value={examData.duration}
             onChange={handleInputChange}
             fullWidth
-            InputProps={{
-              inputProps: { min: 1 },
-              endAdornment: <InputAdornment position="end">min</InputAdornment>
-            }}
+            required
             error={!!displayErrors.duration}
             helperText={displayErrors.duration}
+            InputProps={{
+              inputProps: { min: 1 }
+            }}
           />
         </Grid>
         
-        <Grid item xs={12} sm={6} md={4}>
+        <Grid item xs={12} md={6}>
           <TextField
             name="passingMarks"
             label="Passing Marks"
             type="number"
-            value={examData.passingMarks}
+            value={examData.passingMarks || 0}
             onChange={handleInputChange}
             fullWidth
             InputProps={{
               inputProps: { min: 0 }
             }}
-            error={!!displayErrors.passingMarks}
-            helperText={displayErrors.passingMarks || "Leave 0 for no passing threshold"}
+            helperText="Leave 0 if there's no passing criteria"
           />
         </Grid>
         

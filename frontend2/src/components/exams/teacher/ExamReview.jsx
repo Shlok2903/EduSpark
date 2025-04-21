@@ -18,7 +18,7 @@ import {
   Switch
 } from '@mui/material';
 
-const ExamReview = ({ examData, courseInfo, totalMarks, onExamDataChange }) => {
+const ExamReview = ({ examData, courseInfo, onExamDataChange }) => {
   const handleStatusChange = (e) => {
     if (onExamDataChange) {
       onExamDataChange('status', e.target.value);
@@ -51,6 +51,40 @@ const ExamReview = ({ examData, courseInfo, totalMarks, onExamDataChange }) => {
     });
     return count;
   };
+
+  const calculateTotalMarks = () => {
+    let total = 0;
+    examData.sections.forEach(section => {
+      section.questions.forEach(question => {
+        if (question.type === 'mcq') {
+          total += Number(question.positiveMarks || question.marks || 0);
+        } else {
+          total += Number(question.marks || 0);
+        }
+      });
+    });
+    return total;
+  };
+
+  const totalMarks = calculateTotalMarks();
+  
+  const getExamSummaryData = () => {
+    return [
+      { label: 'Title', value: examData.title || 'Untitled Exam' },
+      { label: 'Course', value: courseInfo?.title || 'Unknown Course' },
+      { label: 'Description', value: examData.description || 'No description provided' },
+      { label: 'Duration', value: `${examData.duration} minutes` },
+      { label: 'Total Marks', value: totalMarks },
+      { label: 'Total Sections', value: examData.sections.length },
+      { label: 'Total Questions', value: examData.sections.reduce((sum, section) => sum + section.questions.length, 0) },
+      { label: 'Passing Marks', value: examData.passingMarks > 0 ? examData.passingMarks : 'None' },
+      { label: 'Starts', value: new Date(examData.startTime).toLocaleString() },
+      { label: 'Ends', value: new Date(examData.endTime).toLocaleString() },
+      { label: 'Negative Marking', value: examData.negativeMarking ? 'Enabled' : 'Disabled' }
+    ];
+  };
+
+  const examSummaryData = getExamSummaryData();
 
   const validateExam = () => {
     const issues = [];
@@ -119,86 +153,88 @@ const ExamReview = ({ examData, courseInfo, totalMarks, onExamDataChange }) => {
         </Alert>
       )}
       
-      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <FormControlLabel
-          control={
-            <Switch 
-              checked={examData.isPublished} 
-              onChange={handlePublishChange}
-              color="primary"
-              disabled={issues.length > 0}
-            />
-          }
-          label={examData.isPublished ? "Exam will be published" : "Exam will be saved as draft"}
-        />
-        {!examData.isPublished && (
-          <Typography variant="caption" color="warning.main">
-            Note: Students won't see the exam until you publish it
+      <Grid container spacing={3} sx={{ mt: 2 }}>
+        <Grid item xs={12} md={6}>
+          <Typography variant="h6" gutterBottom>
+            Exam Summary
           </Typography>
-        )}
-      </Box>
-      
-      <Paper elevation={0} sx={{ p: 2, mb: 3, bgcolor: '#f9f9f9', borderRadius: 2 }}>
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={7}>
-            <Typography variant="subtitle1" gutterBottom>
-              {examData.title || 'Untitled Exam'}
-            </Typography>
-            <Typography variant="body2" color="textSecondary" gutterBottom>
-              {examData.description || 'No description provided'}
-            </Typography>
-          </Grid>
-          
-          <Grid item xs={12} md={5}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
-              <Box>
-                <Typography variant="caption" color="textSecondary">
-                  Course
-                </Typography>
-                <Typography variant="body2">
-                  {courseInfo?.title || 'Unknown Course'}
-                </Typography>
-              </Box>
-              
-              <Box>
-                <Typography variant="caption" color="textSecondary">
-                  Duration
-                </Typography>
-                <Typography variant="body2">
-                  {examData.duration} minutes
-                </Typography>
-              </Box>
-              
-              <Box>
-                <Typography variant="caption" color="textSecondary">
-                  Total Marks
-                </Typography>
-                <Typography variant="body2">
-                  {totalMarks}
-                </Typography>
-              </Box>
-              
-              <Box>
-                <Typography variant="caption" color="textSecondary">
-                  Passing Marks
-                </Typography>
-                <Typography variant="body2">
-                  {examData.passingMarks > 0 ? examData.passingMarks : 'None'}
-                </Typography>
-              </Box>
-              
-              <Box>
-                <Typography variant="caption" color="textSecondary">
-                  Negative Marking
-                </Typography>
-                <Typography variant="body2">
-                  {examData.negativeMarking ? 'Enabled' : 'Disabled'}
-                </Typography>
-              </Box>
-            </Box>
-          </Grid>
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <Grid container spacing={2}>
+              {examSummaryData.map((item, index) => (
+                <Grid item xs={12} sm={6} key={index}>
+                  <Typography variant="caption" color="textSecondary">
+                    {item.label}
+                  </Typography>
+                  <Typography variant="body2" gutterBottom>
+                    {item.value}
+                  </Typography>
+                </Grid>
+              ))}
+            </Grid>
+          </Paper>
         </Grid>
-      </Paper>
+        
+        <Grid item xs={12} md={6}>
+          <Typography variant="h6" gutterBottom>
+            Publishing Options
+          </Typography>
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <FormControlLabel
+              control={
+                <Switch 
+                  checked={examData.isPublished}
+                  onChange={handlePublishChange}
+                  color="primary"
+                  disabled={issues.length > 0}
+                />
+              }
+              label={examData.isPublished ? "Publish immediately after creation" : "Save as draft (publish later)"}
+            />
+            {!examData.isPublished && (
+              <Typography variant="caption" color="warning.main" sx={{ display: 'block', mt: 1 }}>
+                Note: Students won't see the exam until you publish it
+              </Typography>
+            )}
+          </Paper>
+        </Grid>
+      </Grid>
+      
+      <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
+        Section Details
+      </Typography>
+      
+      {examData.sections.map((section, sIndex) => (
+        <Paper variant="outlined" sx={{ p: 2, mb: 2 }} key={sIndex}>
+          <Typography variant="subtitle1" gutterBottom>
+            {section.name || `Section ${sIndex + 1}`}
+          </Typography>
+          <Typography variant="caption" color="textSecondary" paragraph>
+            {section.description || 'No description provided'}
+          </Typography>
+          
+          <Grid container spacing={1}>
+            <Grid item xs={4}>
+              <Typography variant="body2">
+                Questions: {section.questions.length}
+              </Typography>
+            </Grid>
+            <Grid item xs={4}>
+              <Typography variant="body2">
+                MCQs: {section.questions.filter(q => q.type === 'mcq').length}
+              </Typography>
+            </Grid>
+            <Grid item xs={4}>
+              <Typography variant="body2">
+                Marks: {
+                  section.questions.reduce((sum, q) => {
+                    return sum + (q.type === 'mcq' ? (q.positiveMarks || q.marks || 0) : (q.marks || 0));
+                  }, 0)
+                }
+              </Typography>
+            </Grid>
+          </Grid>
+        </Paper>
+      ))}
       
       <Typography variant="subtitle1" gutterBottom>
         Exam Content

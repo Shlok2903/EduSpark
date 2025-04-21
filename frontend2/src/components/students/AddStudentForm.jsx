@@ -66,6 +66,7 @@ const AddStudentForm = ({ open, onClose, onSuccess }) => {
       // Fetch branches
       const branchesResponse = await axios.get(`${import.meta.env.VITE_API_URL}/branches`, { headers });
       if (branchesResponse.data.success) {
+        console.log('Branches loaded:', branchesResponse.data.data);
         setBranches(branchesResponse.data.data);
       }
     } catch (error) {
@@ -89,6 +90,7 @@ const AddStudentForm = ({ open, onClose, onSuccess }) => {
       // Fetch semesters for selected branch
       const semestersResponse = await axios.get(`${import.meta.env.VITE_API_URL}/semesters/by-branch/${branchId}`, { headers });
       if (semestersResponse.data.success) {
+        console.log('Semesters loaded for branch:', branchId, semestersResponse.data.data);
         setSemesters(semestersResponse.data.data);
         
         // If current selected semester is not in this branch, reset it
@@ -154,28 +156,68 @@ const AddStudentForm = ({ open, onClose, onSuccess }) => {
     
     setIsSubmitting(true);
     try {
-      const response = await studentService.addStudent(formData);
-      if (response.success) {
-        setSubmitSuccess(true);
-        // Reset form after success
-        setFormData({
-          name: '',
-          email: '',
-          semester: '',
-          branch: '',
-          parentName: '',
-          parentEmail: ''
-        });
+      // Get the selected branch and semester objects for logging
+      const selectedBranch = branches.find(b => b._id === formData.branch);
+      const selectedSemester = semesters.find(s => s._id === formData.semester);
+      
+      console.log('Selected branch:', selectedBranch);
+      console.log('Selected semester:', selectedSemester);
+      
+      // Prepare data to send to the API
+      const dataToSend = {
+        name: formData.name,
+        email: formData.email,
+        branch: formData.branch,        // Send branch ID
+        semester: formData.semester,    // Send semester ID
+        parentName: formData.parentName,
+        parentEmail: formData.parentEmail
+      };
+      
+      console.log('Sending student data:', dataToSend);
+      
+      // Use direct axios call
+      try {
+        const token = localStorage.getItem('jwtToken');
+        const headers = {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        };
         
-        // Notify parent component of success
-        if (onSuccess) {
-          setTimeout(() => {
-            onSuccess();
-          }, 1500);
+        // API call
+        const directResponse = await axios.post(
+          `${import.meta.env.VITE_API_URL}/students`, 
+          dataToSend,
+          { headers }
+        );
+        
+        console.log('API response:', directResponse);
+        
+        if (directResponse.data.success) {
+          setSubmitSuccess(true);
+          // Reset form after success
+          setFormData({
+            name: '',
+            email: '',
+            semester: '',
+            branch: '',
+            parentName: '',
+            parentEmail: ''
+          });
+          
+          // Notify parent component of success
+          if (onSuccess) {
+            setTimeout(() => {
+              onSuccess();
+            }, 1500);
+          }
         }
+      } catch (directError) {
+        console.error('API error:', directError);
+        console.error('Error response:', directError.response?.data);
+        setSubmitError(directError.response?.data?.message || 'Failed to add student. Please try again.');
       }
     } catch (error) {
-      console.error('Error adding student:', error);
+      console.error('Error in form submit:', error);
       setSubmitError(error.formattedMessage || 'Failed to add student. Please try again.');
     } finally {
       setIsSubmitting(false);

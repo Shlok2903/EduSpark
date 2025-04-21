@@ -867,11 +867,16 @@ const CourseDetail = () => {
         onClose={handleCloseSectionDialog}
         maxWidth="sm"
         fullWidth
+        PaperProps={{
+          style: {
+            maxHeight: '90vh'
+          }
+        }}
       >
         <DialogTitle>
           {isEditingSection ? 'Edit Section' : 'Add New Section'}
         </DialogTitle>
-        <DialogContent>
+        <DialogContent dividers>
           <TextField
             autoFocus
             margin="dense"
@@ -911,11 +916,16 @@ const CourseDetail = () => {
         onClose={handleCloseModuleDialog}
         maxWidth="md"
         fullWidth
+        PaperProps={{
+          style: {
+            maxHeight: '90vh'
+          }
+        }}
       >
         <DialogTitle>
           {isEditingModule ? 'Edit Module' : 'Add New Module'}
         </DialogTitle>
-        <DialogContent>
+        <DialogContent dividers>
           <TextField
             autoFocus
             margin="dense"

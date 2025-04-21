@@ -38,7 +38,7 @@ const examService = {
   
   // Update exam publish status
   publishExam: (examId, isPublished) => 
-    api.put(`/exams/${examId}/publish`, { isPublished }),
+    api.patch(`/exams/${examId}/publish`, { isPublished }),
     
   // Get all my exam attempts (student view)
   getMyAttempts: () => 
@@ -48,7 +48,7 @@ const examService = {
   getUserExams: () => 
     api.get(`/exams/user/exams`),
 
-  // Start an exam attempt
+  // Legacy method - kept for compatibility
   startExam: async (examId) => {
     try {
       const response = await api.post(`/exams/${examId}/start`);
@@ -64,17 +64,50 @@ const examService = {
     }
   },
     
-  // Submit an exam attempt
+  // Legacy method - kept for compatibility
   submitExam: (attemptId) => 
     api.post(`/exams/attempt/${attemptId}/submit`),
     
-  // Save exam progress
+  // Legacy method - kept for compatibility
   saveExamProgress: (attemptId, data) => 
     api.post(`/exams/attempt/${attemptId}/save`, data),
     
-  // Update remaining time
-  updateTimeRemaining: (attemptId, timeRemaining) => 
-    api.put(`/exams/attempt/${attemptId}/time`, { timeRemaining })
+  // Legacy method - kept for compatibility
+  updateTimeRemaining: (attemptId, timeRemaining) => {
+    return api.post(`/exams/attempt/${attemptId}/save`, { timeRemaining });
+  },
+
+  // Start a new exam attempt with the current time
+  startExamAttempt: (examId) => {
+    const currentTime = new Date().toISOString();
+    return api.post(`/exams/${examId}/attempt/start`, { 
+      startTime: currentTime 
+    });
+  },
+
+  // Get the status of an exam attempt
+  getExamAttemptStatus: (examId) => {
+    return api.get(`/exams/${examId}/attempt/status`);
+  },
+
+  // Submit completed exam attempt
+  submitExamAttempt: (data) => {
+    return api.post(`/exams/attempt/submit`, data);
+  },
+
+  // Submit exam attempt with file uploads
+  submitExamAttemptWithFiles: (formData) => {
+    return api.post(`/exams/attempt/submit-with-files`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+  },
+  
+  // Save exam progress during attempt
+  saveExamProgress: (data) => {
+    return api.post(`/exams/attempt/progress`, data);
+  }
 };
 
 export default examService; 

@@ -45,7 +45,7 @@ const QuestionsEditor = ({ sections, onSectionsChange, negativeMarking }) => {
 
   const handleSectionTitleChange = (index, value) => {
     const updatedSections = [...sections];
-    updatedSections[index].title = value;
+    updatedSections[index].name = value;
     onSectionsChange(updatedSections);
   };
 
@@ -58,7 +58,7 @@ const QuestionsEditor = ({ sections, onSectionsChange, negativeMarking }) => {
   const addSection = () => {
     const newSections = [...sections];
     newSections.push({
-      title: `Section ${sections.length + 1}`,
+      name: `Section ${sections.length + 1}`,
       description: '',
       questions: []
     });
@@ -91,8 +91,8 @@ const QuestionsEditor = ({ sections, onSectionsChange, negativeMarking }) => {
       marks: 1,
       negativeMarks: negativeMarking ? 0.25 : 0,
       options: [
-        { text: '', isCorrect: true },
-        { text: '', isCorrect: false }
+        { text: 'Option 1', isCorrect: true },
+        { text: 'Option 2', isCorrect: false }
       ]
     });
     
@@ -117,8 +117,8 @@ const QuestionsEditor = ({ sections, onSectionsChange, negativeMarking }) => {
     // Reset certain fields based on the question type
     if (value === 'mcq') {
       question.options = question.options || [
-        { text: '', isCorrect: true },
-        { text: '', isCorrect: false }
+        { text: 'Option 1', isCorrect: true },
+        { text: 'Option 2', isCorrect: false }
       ];
     } else if (value === 'subjective' || value === 'fileUpload') {
       question.answer = '';
@@ -157,8 +157,9 @@ const QuestionsEditor = ({ sections, onSectionsChange, negativeMarking }) => {
 
   const addOption = (sectionIndex, questionIndex) => {
     const updatedSections = [...sections];
+    const options = updatedSections[sectionIndex].questions[questionIndex].options;
     updatedSections[sectionIndex].questions[questionIndex].options.push({
-      text: '',
+      text: `Option ${options.length + 1}`,
       isCorrect: false
     });
     onSectionsChange(updatedSections);
@@ -227,7 +228,7 @@ const QuestionsEditor = ({ sections, onSectionsChange, negativeMarking }) => {
             <CardHeader
               title={
                 <TextField
-                  value={section.title}
+                  value={section.name}
                   onChange={(e) => handleSectionTitleChange(sectionIndex, e.target.value)}
                   variant="standard"
                   fullWidth

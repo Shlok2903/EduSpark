@@ -25,6 +25,7 @@ import {
   Assignment as AssignmentIcon,
   Check as CheckIcon,
   History as HistoryIcon,
+  PlayArrow,
   PlayArrow as StartIcon,
   School as CourseIcon,
   Timer as DurationIcon,
@@ -86,12 +87,12 @@ const StudentExams = () => {
     setActiveTab(newValue);
   };
 
-  const handleStartExam = (examId) => {
-    navigate(`/strict/exam/${examId}`);
-  };
-
   const handleViewResults = (attemptId) => {
     navigate(`/exams/result/${attemptId}`);
+  };
+
+  const handleStartExam = (examId) => {
+    navigate(`/exams/attempt/${examId}`);
   };
 
   const getCourseName = (courseId) => {
@@ -222,31 +223,48 @@ const StudentExams = () => {
                 />
               )}
               
-              {category === 'live' && !exam.studentStartedExam && (
-                <Button 
-                  variant="contained" 
-                  color="primary"
-                  startIcon={<StartIcon />}
-                  onClick={() => handleStartExam(exam._id)}
-                  fullWidth
-                >
-                  Start Exam
-                </Button>
+              {category === 'live' && (
+                <>
+                  {exam.status === 'not-started' && (
+                  <Button 
+                    variant="contained" 
+                    color="primary"
+                    startIcon={<StartIcon />}
+                    onClick={() => handleStartExam(exam._id)}
+                    className="action-button"
+                    fullWidth
+                  >
+                    Start Exam
+                  </Button>
+                  )}
+                  
+                  {exam.status === 'attempted' && (
+                    <Button 
+                      variant="contained" 
+                      color="warning"
+                      startIcon={<PlayArrow />}
+                      onClick={() => handleStartExam(exam._id)}
+                      className="action-button"
+                      fullWidth
+                    >
+                      Continue Exam
+                    </Button>
+                  )}
+                  
+                  {exam.status === 'submitted' && (
+                    <Button 
+                      variant="outlined" 
+                      color="primary"
+                      startIcon={<CompletedIcon />}
+                      onClick={() => handleViewResults(exam.attemptId)}
+                      fullWidth
+                      disabled={!exam.attemptId}
+                    >
+                      View Results
+                    </Button>
               )}
               
-              {category === 'live' && exam.studentStartedExam && !exam.studentSubmitted && (
-                <Button 
-                  variant="contained" 
-                  color="secondary"
-                  startIcon={<StartIcon />}
-                  onClick={() => handleStartExam(exam._id)}
-                  fullWidth
-                >
-                  Continue Exam
-                </Button>
-              )}
-              
-              {category === 'live' && exam.studentSubmitted && (
+                  {exam.status === 'completed' && (
                 <Button 
                   variant="outlined" 
                   color="primary"
@@ -258,35 +276,25 @@ const StudentExams = () => {
                 </Button>
               )}
               
-              {category === 'completed' && (
-                <>
-                  {exam.studentSubmitted ? (
-                    <Chip 
-                      icon={<CompletedIcon />}
-                      label={exam.status === 'timed-out' ? 'Time Expired' : 'Completed'}
-                      color={exam.status === 'timed-out' ? 'warning' : 'success'} 
-                      variant="outlined"
-                    />
-                  ) : (
-                    <Chip 
-                      icon={<EndedIcon />}
-                      label="Ended (Not Submitted)" 
-                      color="error"
-                      variant="outlined"
-                    />
+                  {(exam.status === 'not-started' || exam.status === 'attempted') && (
+                    <Typography variant="caption" color="text.secondary" className="exam-note" sx={{ mt: 1 }}>
+                      Make sure you have enough time to complete the exam. Your session will expire when the exam ends.
+                    </Typography>
+                  )}
+                </>
                   )}
                   
-                  {exam.studentSubmitted && exam.attemptId && (
+              {category === 'completed' && (
                     <Button
-                      variant="contained"
+                  variant="outlined" 
                       color="primary"
                       onClick={() => handleViewResults(exam.attemptId)}
-                      className="action-button"
+                  startIcon={<CompletedIcon />}
+                  fullWidth
+                  disabled={!exam.attemptId}
                     >
                       View Results
                     </Button>
-                  )}
-                </>
               )}
             </Grid>
           </Grid>

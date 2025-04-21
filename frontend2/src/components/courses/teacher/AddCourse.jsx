@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -15,12 +15,15 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  FormHelperText
+  FormHelperText,
+  CircularProgress
 } from '@mui/material';
 import { PhotoCamera } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import courseService from '../../../services/courseService';
+import branchService from '../../../services/branchService';
+import semesterService from '../../../services/semesterService';
 import './AddCourse.css';
 
 function AddCourse() {
@@ -32,10 +35,66 @@ function AddCourse() {
     title: '',
     description: '',
     visibilityType: 'public', // Default to public
+    branch: '',
+    semester: '',
     deadline: '',
     courseImage: null
   });
   const [imagePreview, setImagePreview] = useState(null);
+  const [branches, setBranches] = useState([]);
+  const [semesters, setSemesters] = useState([]);
+  const [loadingBranches, setLoadingBranches] = useState(false);
+  const [loadingSemesters, setLoadingSemesters] = useState(false);
+
+  // Fetch branches on component mount
+  useEffect(() => {
+    fetchBranches();
+  }, []);
+
+  // Fetch semesters when branch changes
+  useEffect(() => {
+    if (courseData.branch) {
+      fetchSemesters(courseData.branch);
+    } else {
+      setSemesters([]);
+    }
+  }, [courseData.branch]);
+
+  // Fetch all branches
+  const fetchBranches = async () => {
+    try {
+      setLoadingBranches(true);
+      const response = await branchService.getAllBranches();
+      if (response.success) {
+        setBranches(response.data);
+      } else {
+        toast.error('Failed to load branches');
+      }
+    } catch (error) {
+      console.error('Error fetching branches:', error);
+      toast.error('Error loading branches');
+    } finally {
+      setLoadingBranches(false);
+    }
+  };
+
+  // Fetch semesters for selected branch
+  const fetchSemesters = async (branchId) => {
+    try {
+      setLoadingSemesters(true);
+      const response = await semesterService.getSemestersByBranch(branchId);
+      if (response.success) {
+        setSemesters(response.data);
+      } else {
+        toast.error('Failed to load semesters');
+      }
+    } catch (error) {
+      console.error('Error fetching semesters:', error);
+      toast.error('Error loading semesters');
+    } finally {
+      setLoadingSemesters(false);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -43,6 +102,16 @@ function AddCourse() {
       ...prev,
       [name]: value
     }));
+    
+    // If visibility type changes, reset branch and semester if it's public
+    if (name === 'visibilityType' && value === 'public') {
+      setCourseData(prev => ({
+        ...prev,
+        branch: '',
+        semester: '',
+        [name]: value
+      }));
+    }
   };
 
   const handleImageChange = (e) => {
@@ -88,6 +157,14 @@ function AddCourse() {
     // Validate that deadline is set if course is mandatory
     if (courseData.visibilityType === 'mandatory' && !courseData.deadline) {
       toast.error('Please set a deadline for mandatory courses');
+      setLoading(false);
+      return;
+    }
+    
+    // Validate branch and semester are set for non-public courses
+    if ((courseData.visibilityType === 'mandatory' || courseData.visibilityType === 'optional') && 
+        (!courseData.branch || !courseData.semester)) {
+      toast.error('Please select a branch and semester for non-public courses');
       setLoading(false);
       return;
     }
@@ -138,6 +215,9 @@ function AddCourse() {
     // Navigate to add sections page with the course ID
     navigate(`/add-course/sections/${courseId}`);
   };
+
+  // Determine if branch/semester fields should be displayed
+  const showBranchSemester = courseData.visibilityType === 'mandatory' || courseData.visibilityType === 'optional';
 
   return (
     <Box className="add-course-container">
@@ -203,7 +283,7 @@ function AddCourse() {
                       id="visibilityType"
                       name="visibilityType"
                       value={courseData.visibilityType}
-                        onChange={handleChange}
+                      onChange={handleChange}
                       label="Course Visibility"
                     >
                       <MenuItem value="public">Public (Anyone can enroll and view)</MenuItem>
@@ -221,20 +301,92 @@ function AddCourse() {
                 </Grid>
 
                 <Grid item xs={12} md={6}>
-                    <TextField
-                      fullWidth
+                  <TextField
+                    fullWidth
                     label="Deadline (Optional for mandatory courses)"
-                      name="deadline"
-                      type="date"
-                      value={courseData.deadline}
-                      onChange={handleChange}
-                      InputLabelProps={{
-                        shrink: true,
-                      }}
+                    name="deadline"
+                    type="date"
+                    value={courseData.deadline}
+                    onChange={handleChange}
+                    InputLabelProps={{
+                      shrink: true,
+                    }}
                     helperText={courseData.visibilityType === 'mandatory' ? 'Required for mandatory courses' : 'Optional'}
                     required={courseData.visibilityType === 'mandatory'}
-                    />
+                  />
                 </Grid>
+                
+                {/* Branch dropdown - only show for non-public courses */}
+                {showBranchSemester && (
+                  <Grid item xs={12} md={6}>
+                    <FormControl fullWidth required disabled={loadingBranches}>
+                      <InputLabel id="branch-label">Branch</InputLabel>
+                      <Select
+                        labelId="branch-label"
+                        id="branch"
+                        name="branch"
+                        value={courseData.branch}
+                        onChange={handleChange}
+                        label="Branch"
+                      >
+                        {loadingBranches ? (
+                          <MenuItem value="">
+                            <CircularProgress size={20} /> Loading...
+                          </MenuItem>
+                        ) : (
+                          branches.map(branch => (
+                            <MenuItem key={branch._id} value={branch._id}>
+                              {branch.name}
+                            </MenuItem>
+                          ))
+                        )}
+                      </Select>
+                      <FormHelperText>Select the branch for this course</FormHelperText>
+                    </FormControl>
+                  </Grid>
+                )}
+                
+                {/* Semester dropdown - only show for non-public courses and when branch is selected */}
+                {showBranchSemester && (
+                  <Grid item xs={12} md={6}>
+                    <FormControl 
+                      fullWidth 
+                      required 
+                      disabled={loadingSemesters || !courseData.branch}
+                    >
+                      <InputLabel id="semester-label">Semester</InputLabel>
+                      <Select
+                        labelId="semester-label"
+                        id="semester"
+                        name="semester"
+                        value={courseData.semester}
+                        onChange={handleChange}
+                        label="Semester"
+                      >
+                        {loadingSemesters ? (
+                          <MenuItem value="">
+                            <CircularProgress size={20} /> Loading...
+                          </MenuItem>
+                        ) : !courseData.branch ? (
+                          <MenuItem value="">
+                            First select a branch
+                          </MenuItem>
+                        ) : (
+                          semesters.map(semester => (
+                            <MenuItem key={semester._id} value={semester._id}>
+                              {semester.name}
+                            </MenuItem>
+                          ))
+                        )}
+                      </Select>
+                      <FormHelperText>
+                        {!courseData.branch 
+                          ? 'Select a branch first' 
+                          : 'Select the semester for this course'}
+                      </FormHelperText>
+                    </FormControl>
+                  </Grid>
+                )}
                 
                 <Grid item xs={12}>
                   <Typography variant="subtitle1" gutterBottom>
@@ -248,11 +400,11 @@ function AddCourse() {
                     style={{ display: 'none' }}
                   />
                   <label htmlFor="course-image-upload">
-                      <Button
-                        variant="outlined"
+                    <Button
+                      variant="outlined"
                       component="span"
-                        startIcon={<PhotoCamera />}
-                      >
+                      startIcon={<PhotoCamera />}
+                    >
                       Upload Image
                     </Button>
                   </label>
@@ -267,9 +419,9 @@ function AddCourse() {
                           objectFit: 'cover',
                           borderRadius: '8px'
                         }}
-                        />
+                      />
                     </Box>
-                    )}
+                  )}
                 </Grid>
                 
                 <Grid item xs={12} textAlign="right">

@@ -11,7 +11,22 @@ const enrollmentService = {
       return { success: true, ...response };
     } catch (error) {
       console.error('Enrollment error:', error);
-      return { success: false, message: error.formattedMessage || 'Enrollment failed' };
+      
+      // Check for specific 403 errors related to branch/semester restrictions
+      if (error.status === 403) {
+        if (error.data && error.data.message) {
+          return { 
+            success: false, 
+            message: error.data.message,
+            accessRestricted: true
+          };
+        }
+      }
+      
+      return { 
+        success: false, 
+        message: error.formattedMessage || 'Enrollment failed' 
+      };
     }
   },
   
