@@ -209,22 +209,18 @@ const CourseDetail = () => {
           let contentVideoUrl = '';
           let contentQuizQuestions = [];
           
-          if (typeof module.content === 'object' && module.content !== null) {
-            contentText = module.content.text || '';
-            contentVideoUrl = module.content.videoUrl || '';
-            contentQuizQuestions = module.content.quiz?.questions || [];
-          } else {
-            contentText = module.textContent || '';
-            contentVideoUrl = module.videoUrl || '';
-            contentQuizQuestions = module.quizQuestions || [];
+          if (module.contentType === 'text') {
+            contentText = module.textContent?.content || '';
+          } else if (module.contentType === 'video') {
+            contentVideoUrl = module.videoContent?.videoUrl || '';
+          } else if (module.contentType === 'quiz') {
+            contentQuizQuestions = module.quizContent?.questions || [];
           }
-          
-          const moduleContentType = module.contentType || module.type || 'text';
           
           setModuleData({
             title: module.title || '',
             description: module.description || '',
-            contentType: moduleContentType,
+            contentType: module.contentType || 'text',
             content: {
               text: contentText,
               videoUrl: contentVideoUrl,
@@ -534,11 +530,17 @@ const CourseDetail = () => {
 
       // Add the appropriate content field based on type
       if (moduleData.contentType === 'text') {
-        moduleToSave.textContent = moduleData.content.text;
+        moduleToSave.textContent = {
+          content: moduleData.content.text
+        };
       } else if (moduleData.contentType === 'video') {
-        moduleToSave.videoUrl = moduleData.content.videoUrl;
+        moduleToSave.videoContent = {
+          videoUrl: moduleData.content.videoUrl
+        };
       } else if (moduleData.contentType === 'quiz') {
-        moduleToSave.quizQuestions = moduleData.content.quiz.questions;
+        moduleToSave.quizContent = {
+          questions: moduleData.content.quiz.questions
+        };
       }
 
       console.log('Saving module with data:', moduleToSave);

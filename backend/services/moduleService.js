@@ -72,7 +72,7 @@ const createModule = async (courseId, sectionId, moduleData) => {
     switch (contentType) {
       case 'video':
         moduleObj.videoContent = {
-          videoUrl: moduleData.videoUrl
+          videoUrl: moduleData.videoContent?.videoUrl || moduleData.videoUrl
         };
         break;
       

@@ -42,7 +42,7 @@ const createModule = async (req, res) => {
   try {
     const { courseId, sectionId } = req.params;
     const moduleData = req.body;
-    
+    console.log(moduleData);
     const module = await moduleService.createModule(courseId, sectionId, moduleData);
     
     return handleResponse(res, 201, true, 'Module created successfully', module);
