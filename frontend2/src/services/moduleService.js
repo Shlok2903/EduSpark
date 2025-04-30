@@ -31,7 +31,8 @@ const moduleService = {
       switch (moduleData.contentType || moduleData.type) {
         case 'video':
           // Get the video URL from the most likely location
-          const videoUrl = moduleData.videoUrl || 
+          const videoUrl = moduleData.videoContent?.videoUrl || 
+                           moduleData.videoUrl || 
                            moduleData.content?.url || 
                            moduleData.content?.videoUrl || 
                            '';

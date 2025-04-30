@@ -582,6 +582,8 @@ const CourseDetail = () => {
         moduleToSave.videoContent = {
           videoUrl: moduleData.content.videoUrl
         };
+        // Also set the videoUrl at the root level for backward compatibility
+        moduleToSave.videoUrl = moduleData.content.videoUrl;
       }
 
       console.log('Saving module with data:', moduleToSave);
