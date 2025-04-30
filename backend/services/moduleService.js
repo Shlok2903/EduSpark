@@ -78,7 +78,7 @@ const createModule = async (courseId, sectionId, moduleData) => {
       
       case 'text':
         moduleObj.textContent = {
-          content: sanitizeHtml(moduleData.textContent)
+          content: sanitizeHtml(moduleData.textContent || '')
         };
         break;
       
@@ -86,12 +86,16 @@ const createModule = async (courseId, sectionId, moduleData) => {
         moduleObj.quizContent = {
           questions: moduleData.quizQuestions.map(q => ({
             question: sanitizeHtml(q.question),
-            options: q.options.map(opt => ({
-              text: sanitizeHtml(opt.text),
-              isCorrect: opt.isCorrect
-            }))
+            options: q.options.map((optionText, index) => ({
+              text: sanitizeHtml(optionText),
+              isCorrect: index === parseInt(q.correctOption)
+            })),
+            marks: q.marks || 1
           })),
-          passingScore: moduleData.passingScore || 70
+          passingScore: moduleData.passingScore || 70,
+          timer: moduleData.timer || 0,
+          maxAttempts: moduleData.maxAttempts || 0,
+          deadline: moduleData.deadline || null
         };
         break;
       
@@ -162,12 +166,16 @@ const createModulesBatch = async (modulesData, courseId, sectionId) => {
           moduleObj.quizContent = {
             questions: content?.questions.map(q => ({
               question: sanitizeHtml(q.question),
-              options: q.options.map((text, index) => ({
-                text: sanitizeHtml(text),
-                isCorrect: index === q.correctOption
-              }))
+              options: q.options.map((optionText, index) => ({
+                text: sanitizeHtml(optionText),
+                isCorrect: index === parseInt(q.correctOption)
+              })),
+              marks: q.marks || 1
             })) || [],
-            passingScore: 70 // Default passing score
+            passingScore: content?.passingScore || 70,
+            timer: content?.timer || 0,
+            maxAttempts: content?.maxAttempts || 0,
+            deadline: content?.deadline || null
           };
           break;
         
@@ -246,24 +254,24 @@ const updateModule = async (moduleId, moduleData) => {
     if (moduleData.description) module.description = sanitizeHtml(moduleData.description);
     
     // Update content based on type with sanitization
-    if (module.contentType === 'video' && moduleData.videoUrl) {
+    if (module.contentType === 'video' && moduleData.videoContent?.videoUrl) {
       module.videoContent = {
-        videoUrl: moduleData.videoUrl
+        videoUrl: moduleData.videoContent.videoUrl
       };
-    } else if (module.contentType === 'text' && moduleData.textContent) {
+    } else if (module.contentType === 'text') {
       module.textContent = {
-        content: sanitizeHtml(moduleData.textContent)
+        content: sanitizeHtml(moduleData.textContent || '')
       };
-    } else if (module.contentType === 'quizz' && moduleData.quizQuestions) {
+    } else if (module.contentType === 'quizz' && moduleData.quizContent?.questions) {
       module.quizContent = {
-        questions: moduleData.quizQuestions.map(q => ({
+        questions: moduleData.quizContent.questions.map(q => ({
           question: sanitizeHtml(q.question),
           options: q.options.map(opt => ({
             text: sanitizeHtml(opt.text),
             isCorrect: opt.isCorrect
           }))
         })),
-        passingScore: moduleData.passingScore || module.quizContent.passingScore
+        passingScore: moduleData.quizContent?.passingScore || module.quizContent?.passingScore || 70
       };
     }
     

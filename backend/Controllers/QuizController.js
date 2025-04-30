@@ -470,7 +470,14 @@ exports.getQuizQuestions = async (req, res) => {
     const questions = quizQuestions.map(question => ({
       _id: question._id,
       question: question.question,
-      options: question.options.map(opt => typeof opt === 'string' ? opt : opt.text),
+      options: question.options.map(opt => {
+        if (typeof opt === 'string') {
+          return opt;
+        } else if (opt && typeof opt === 'object') {
+          return opt.text || '';
+        }
+        return '';
+      }),
       marks: question.marks || 1
     }));
 

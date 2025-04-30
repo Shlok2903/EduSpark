@@ -530,9 +530,7 @@ const CourseDetail = () => {
 
       // Add the appropriate content field based on type
       if (moduleData.contentType === 'text') {
-        moduleToSave.textContent = {
-          content: moduleData.content.text
-        };
+        moduleToSave.textContent = moduleData.content.text;
       } else if (moduleData.contentType === 'video') {
         moduleToSave.videoContent = {
           videoUrl: moduleData.content.videoUrl

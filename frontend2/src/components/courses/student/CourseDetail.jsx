@@ -780,16 +780,22 @@ const CourseDetail = () => {
               )}
               
                 {/* Text Content */}
-                {selectedModule.contentType === "text" &&
-                  selectedModule.textContent && (
-                <Box className="text-content">
+                {selectedModule.contentType === "text" && (
+                  <Box className="text-content">
+                    {console.log('Text Module Data:', selectedModule)}
+                    {selectedModule.textContent && typeof selectedModule.textContent.content === 'string' ? (
                       <div
                         dangerouslySetInnerHTML={{
-                          __html: selectedModule.textContent.content,
+                          __html: selectedModule.textContent.content
                         }}
                       />
-                </Box>
-              )}
+                    ) : (
+                      <Typography variant="body1">
+                        No content available for this module.
+                      </Typography>
+                    )}
+                  </Box>
+                )}
               
                 {/* Quiz Content */}
                 {(selectedModule.contentType === "quiz" || selectedModule.contentType === "quizz") &&
@@ -837,26 +843,6 @@ const CourseDetail = () => {
                                     : 'No time limit'}
                                 </Typography>
                               </Grid>
-                              
-                              {quizInfo.quizInfo.maxAttempts > 0 && (
-                                <Grid item xs={6} sm={3}>
-                                  <Typography variant="subtitle2">Maximum Attempts</Typography>
-                                  <Typography variant="body1">
-                                    {quizInfo.quizInfo.maxAttempts} 
-                                    {quizInfo.previousAttempts > 0 && 
-                                      ` (Used: ${quizInfo.previousAttempts})`}
-                                  </Typography>
-                                </Grid>
-                              )}
-                              
-                              {quizInfo.quizInfo.deadline && (
-                                <Grid item xs={6} sm={3}>
-                                  <Typography variant="subtitle2">Deadline</Typography>
-                                  <Typography variant="body1">
-                                    {new Date(quizInfo.quizInfo.deadline).toLocaleString()}
-                                  </Typography>
-                                </Grid>
-                              )}
                             </Grid>
                           </Box>
                           
@@ -869,22 +855,10 @@ const CourseDetail = () => {
                           >
                             Start Quiz
                           </Button>
-                          
-                          {quizInfo.maxAttemptsReached && (
-                            <Typography color="error" sx={{ mt: 2 }}>
-                              You have reached the maximum number of attempts for this quiz.
-                            </Typography>
-                          )}
-                          
-                          {quizInfo.isDeadlinePassed && (
-                            <Typography color="error" sx={{ mt: 2 }}>
-                              The deadline for this quiz has passed.
-                            </Typography>
-                          )}
                         </Box>
                       )}
                       
-                      {/* Quiz taking interface - only show when questions are loaded */}
+                      {/* Quiz taking interface */}
                       {!loadingQuiz && quizAttempt && quizQuestions.length > 0 && !quizSubmitted && (
                         <Box className="quiz-questions">
                           {/* Quiz Header with Timer */}
@@ -916,7 +890,7 @@ const CourseDetail = () => {
                             )}
                           </Box>
                           
-                          {/* Questions from the loaded quizQuestions array */}
+                          {/* Questions */}
                           {quizQuestions.map((question, questionIndex) => (
                             <Box
                               key={question._id || questionIndex}
@@ -930,7 +904,7 @@ const CourseDetail = () => {
                               }}
                             >
                               <Typography variant="subtitle1" gutterBottom>
-                                <strong>Question {questionIndex + 1}:</strong> {question.question}
+                                <strong>Question {questionIndex + 1}:</strong> {typeof question.question === 'string' ? question.question : ''}
                               </Typography>
                               <Typography variant="caption" color="textSecondary" display="block" mb={2}>
                                 {question.marks > 1 ? `${question.marks} marks` : '1 mark'}
@@ -946,7 +920,7 @@ const CourseDetail = () => {
                                     key={optionIndex}
                                     value={optionIndex}
                                     control={<Radio />}
-                                    label={option}
+                                    label={typeof option === 'string' ? option : (option.text || '')}
                                     sx={{ mb: 1 }}
                                   />
                                 ))}
