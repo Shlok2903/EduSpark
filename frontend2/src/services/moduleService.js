@@ -57,7 +57,8 @@ const moduleService = {
           formattedData.textContent = textContent;
           break;
         case 'quiz':
-          const quizQuestions = moduleData.quizQuestions || 
+          const quizQuestions = moduleData.quizContent?.questions || 
+                               moduleData.quizQuestions || 
                                moduleData.content?.questions || 
                                [];
                                
@@ -66,14 +67,19 @@ const moduleService = {
             throw new Error('Quiz questions are required for quiz type modules');
           }
           
-          // Map the quiz questions to the expected format if needed
-          formattedData.quizQuestions = quizQuestions.map ? quizQuestions.map(q => ({
-            question: q.question,
-            options: q.options.map((text, index) => ({
-              text,
-              isCorrect: index === q.correctOption
-            }))
-          })) : quizQuestions;
+          // Map the quiz questions to the expected format
+          formattedData.quizContent = {
+            questions: quizQuestions.map(q => ({
+              question: q.question,
+              options: q.options.map(opt => ({
+                text: opt.text || '',
+                isCorrect: Boolean(opt.isCorrect)
+              }))
+            })),
+            passingScore: moduleData.quizContent?.passingScore || 70,
+            timer: moduleData.quizContent?.timer || 0,
+            maxAttempts: moduleData.quizContent?.maxAttempts || 0
+          };
           
           break;
         default:

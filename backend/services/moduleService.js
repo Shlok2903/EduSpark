@@ -82,21 +82,53 @@ const createModule = async (courseId, sectionId, moduleData) => {
         };
         break;
       
+      case 'quiz':
       case 'quizz':
+        console.log('Received quiz module data:', moduleData);
+        
+        if (!moduleData.quizContent || !moduleData.quizContent.questions) {
+          console.error('Missing quiz content or questions:', moduleData);
+          throw new Error('Quiz questions are required for quiz type modules');
+        }
+
+        const questions = moduleData.quizContent.questions;
+        
+        // Validate questions array
+        if (!Array.isArray(questions) || questions.length === 0) {
+          console.error('Invalid questions array:', questions);
+          throw new Error('At least one quiz question is required');
+        }
+
         moduleObj.quizContent = {
-          questions: moduleData.quizQuestions.map(q => ({
-            question: sanitizeHtml(q.question),
-            options: q.options.map((optionText, index) => ({
-              text: sanitizeHtml(optionText),
-              isCorrect: index === parseInt(q.correctOption)
-            })),
-            marks: q.marks || 1
-          })),
-          passingScore: moduleData.passingScore || 70,
-          timer: moduleData.timer || 0,
-          maxAttempts: moduleData.maxAttempts || 0,
-          deadline: moduleData.deadline || null
+          questions: questions.map(q => {
+            if (!q.question || !q.options || !Array.isArray(q.options)) {
+              console.error('Invalid question format:', q);
+              throw new Error('Invalid question format');
+            }
+
+            return {
+              question: sanitizeHtml(q.question),
+              options: q.options.map(opt => {
+                if (!opt || typeof opt !== 'object') {
+                  console.error('Invalid option format:', opt);
+                  throw new Error('Invalid option format');
+                }
+
+                return {
+                  text: sanitizeHtml(opt.text || ''),
+                  isCorrect: Boolean(opt.isCorrect)
+                };
+              }),
+              marks: q.marks || 1
+            };
+          }),
+          passingScore: moduleData.quizContent.passingScore || 70,
+          timer: moduleData.quizContent.timer || 0,
+          maxAttempts: moduleData.quizContent.maxAttempts || 0,
+          deadline: moduleData.quizContent.deadline || null
         };
+
+        console.log('Processed quiz content:', moduleObj.quizContent);
         break;
       
       default:

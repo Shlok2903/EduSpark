@@ -90,7 +90,7 @@ const ModuleSchema = new Schema({
   },
   contentType: {
     type: String,
-    enum: ["text", "video", "quizz"],
+    enum: ["text", "video", "quiz", "quizz"],
     required: true
   },
   // Store the appropriate content based on the contentType

@@ -510,6 +510,13 @@ const CourseDetail = () => {
         return;
       }
 
+      // Create a clean module object for the API
+      const moduleToSave = {
+        title: moduleData.title,
+        description: moduleData.description,
+        contentType: moduleData.contentType
+      };
+
       // Validate content based on type
       if (moduleData.contentType === 'video' && !moduleData.content.videoUrl) {
         toast.error('Video URL is required');
@@ -521,23 +528,59 @@ const CourseDetail = () => {
         return;
       }
 
-      // Create a clean module object for the API
-      const moduleToSave = {
-        title: moduleData.title,
-        description: moduleData.description,
-        contentType: moduleData.contentType
-      };
+      if (moduleData.contentType === 'quiz') {
+        // Validate quiz questions
+        const questions = moduleData.content.quiz.questions;
+        if (!questions || questions.length === 0) {
+          toast.error('At least one quiz question is required');
+          return;
+        }
+
+        // Validate each question
+        for (const question of questions) {
+          if (!question.question || question.question.trim() === '') {
+            toast.error('Question text cannot be empty');
+            return;
+          }
+          if (!question.options || question.options.length < 2) {
+            toast.error('Each question must have at least 2 options');
+            return;
+          }
+          const hasCorrectOption = question.options.some(opt => opt.isCorrect);
+          if (!hasCorrectOption) {
+            toast.error('Each question must have at least one correct option');
+            return;
+          }
+        }
+
+        // Format quiz questions properly
+        const formattedQuestions = questions.map(q => ({
+          question: q.question,
+          options: q.options.map(opt => ({
+            text: opt.text || '',
+            isCorrect: Boolean(opt.isCorrect)
+          }))
+        }));
+
+        // Add quiz content to module
+        moduleToSave.quizContent = {
+          questions: formattedQuestions,
+          passingScore: 70,
+          timer: 0,
+          maxAttempts: 0
+        };
+
+        console.log('Quiz content to save:', moduleToSave.quizContent);
+      }
 
       // Add the appropriate content field based on type
       if (moduleData.contentType === 'text') {
-        moduleToSave.textContent = moduleData.content.text;
+        moduleToSave.textContent = {
+          content: moduleData.content.text
+        };
       } else if (moduleData.contentType === 'video') {
         moduleToSave.videoContent = {
           videoUrl: moduleData.content.videoUrl
-        };
-      } else if (moduleData.contentType === 'quiz') {
-        moduleToSave.quizContent = {
-          questions: moduleData.content.quiz.questions
         };
       }
 
