@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -7,20 +7,59 @@ import {
   Card,
   CardContent,
   Grid,
-  Button
+  Button,
+  CircularProgress,
+  Alert
 } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import SearchIcon from '@mui/icons-material/Search';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import LocalLibraryIcon from '@mui/icons-material/LocalLibrary';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import PeopleIcon from '@mui/icons-material/People';
+import dashboardService from '../../services/dashboardService';
 import './Home.css';
 
 const Home = () => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const navigate = useNavigate();
+
   const userName = localStorage.getItem('loggedInUser') || 'Student';
   const isAdmin = localStorage.getItem('isAdmin') === 'true';
   const isTutor = localStorage.getItem('isTutor') === 'true';
+  
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  useEffect(() => {
+    console.log('Dashboard data state:', dashboardData);
+  }, [dashboardData]);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const response = await dashboardService.getDashboardData();
+      console.log('Dashboard response:', response); // Debug log
+      if (response.success) {
+        setDashboardData(response.data);
+        setError(null);
+      } else {
+        setError(response.message || 'Failed to fetch dashboard data');
+        setDashboardData(null);
+      }
+    } catch (err) {
+      console.error('Dashboard error:', err);
+      setError(err.message || 'An error occurred while fetching dashboard data');
+      setDashboardData(null);
+    } finally {
+      setLoading(false);
+    }
+  };
   
   // Helper function to get greeting based on time of day
   const getGreeting = () => {
@@ -29,6 +68,22 @@ const Home = () => {
     if (hour < 18) return 'Good afternoon';
     return 'Good evening';
   };
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box p={3}>
+        <Alert severity="error">{error}</Alert>
+      </Box>
+    );
+  }
   
   return (
     <div className="home-page">
@@ -63,7 +118,7 @@ const Home = () => {
       
       <div className="home-content">
         {/* Student Dashboard */}
-        {!isAdmin && !isTutor && (
+        {!isAdmin && !isTutor && dashboardData && (
           <>
             <Typography variant="h5" className="section-title">
               Your Learning Dashboard
@@ -80,12 +135,13 @@ const Home = () => {
                       My Courses
                     </Typography>
                     <Typography className="card-value">
-                      5 Active Courses
+                      {dashboardData.activeCourses} Active Courses
                     </Typography>
                     <Button 
                       variant="contained" 
                       className="card-action-btn"
                       color="primary"
+                      onClick={() => navigate('/dashboard/courses')}
                     >
                       View Courses
                     </Button>
@@ -100,17 +156,18 @@ const Home = () => {
                       <AssignmentIcon className="card-icon" />
                     </div>
                     <Typography variant="h6" className="card-title">
-                      Pending Assignments
+                      Pending Exams & Quizzes
                     </Typography>
                     <Typography className="card-value">
-                      3 Due This Week
+                      {dashboardData.pendingExams || 0} Pending
                     </Typography>
                     <Button 
                       variant="contained" 
                       className="card-action-btn"
                       color="primary"
+                      onClick={() => navigate('/dashboard/exams')}
                     >
-                      View Assignments
+                      View Exams
                     </Button>
                   </CardContent>
                 </Card>
@@ -126,12 +183,13 @@ const Home = () => {
                       Achievements
                     </Typography>
                     <Typography className="card-value">
-                      12 Badges Earned
+                      {dashboardData.achievements.totalBadges} Badges Earned
                     </Typography>
                     <Button 
                       variant="contained" 
                       className="card-action-btn"
                       color="primary"
+                      onClick={() => navigate('/dashboard/achievements')}
                     >
                       View Achievements
                     </Button>
@@ -145,18 +203,60 @@ const Home = () => {
             </Typography>
             
             <Grid container spacing={3} className="courses-list">
-              {/* Placeholder for course progress cards */}
-              <Grid item xs={12}>
-                <Typography variant="body1" className="placeholder-text">
-                  Your enrolled courses will appear here
-                </Typography>
-              </Grid>
+              {dashboardData.courseProgress.length > 0 ? (
+                dashboardData.courseProgress.map((course) => (
+                  <Grid item xs={12} sm={6} md={4} key={course.courseId}>
+                    <Card className="course-progress-card">
+                      <CardContent>
+                        <img 
+                          src={course.imageUrl || 'https://via.placeholder.com/300x200?text=Course+Image'} 
+                          alt={course.title}
+                          className="course-image"
+                        />
+                        <Typography variant="h6" className="course-title">
+                          {course.title}
+                        </Typography>
+                        <Typography variant="body2" className="course-description">
+                          {course.description}
+                        </Typography>
+                        <Box className="progress-container">
+                          <Box className="progress-bar" sx={{ width: `${course.progress}%` }} />
+                          <Typography variant="body2" className="progress-text">
+                            {course.progress}% Complete
+                          </Typography>
+                        </Box>
+                        <Button 
+                          variant="contained"
+                          fullWidth
+                          onClick={() => navigate(`/courses/${course.courseId}`)}
+                        >
+                          Continue Learning
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))
+              ) : (
+                <Grid item xs={12}>
+                  <Typography variant="body1" className="placeholder-text">
+                    You haven't enrolled in any courses yet
+                  </Typography>
+                  <Button 
+                    variant="contained" 
+                    color="primary"
+                    onClick={() => navigate('/courses')}
+                    sx={{ mt: 2 }}
+                  >
+                    Browse Courses
+                  </Button>
+                </Grid>
+              )}
             </Grid>
           </>
         )}
         
         {/* Teacher Dashboard */}
-        {isTutor && (
+        {isTutor && dashboardData && (
           <>
             <Typography variant="h5" className="section-title">
               Teacher Dashboard
@@ -173,14 +273,39 @@ const Home = () => {
                       My Courses
                     </Typography>
                     <Typography className="card-value">
-                      3 Active Courses
+                      {dashboardData.activeCourses} Active Courses
                     </Typography>
                     <Button 
                       variant="contained" 
                       className="card-action-btn"
                       color="primary"
+                      onClick={() => navigate('/dashboard/manage-courses')}
                     >
                       Manage Courses
+                    </Button>
+                  </CardContent>
+                </Card>
+              </Grid>
+              
+              <Grid item xs={12} sm={6} md={4}>
+                <Card className="dashboard-card">
+                  <CardContent>
+                    <div className="card-icon-container students">
+                      <PeopleIcon className="card-icon" />
+                    </div>
+                    <Typography variant="h6" className="card-title">
+                      Total Students
+                    </Typography>
+                    <Typography className="card-value">
+                      {dashboardData.totalStudents} Students
+                    </Typography>
+                    <Button 
+                      variant="contained" 
+                      className="card-action-btn"
+                      color="primary"
+                      onClick={() => navigate('/dashboard/students')}
+                    >
+                      View Students
                     </Button>
                   </CardContent>
                 </Card>
@@ -193,15 +318,16 @@ const Home = () => {
                       <AssignmentIcon className="card-icon" />
                     </div>
                     <Typography variant="h6" className="card-title">
-                      Student Submissions
+                      Pending Reviews
                     </Typography>
                     <Typography className="card-value">
-                      8 Pending Review
+                      {dashboardData.pendingReviews} To Review
                     </Typography>
                     <Button 
                       variant="contained" 
                       className="card-action-btn"
                       color="primary"
+                      onClick={() => navigate('/dashboard/reviews')}
                     >
                       Review Work
                     </Button>
@@ -213,7 +339,7 @@ const Home = () => {
         )}
         
         {/* Admin Dashboard */}
-        {isAdmin && (
+        {isAdmin && dashboardData && (
           <>
             <Typography variant="h5" className="section-title">
               Admin Dashboard
@@ -224,18 +350,19 @@ const Home = () => {
                 <Card className="dashboard-card">
                   <CardContent>
                     <div className="card-icon-container users">
-                      <LocalLibraryIcon className="card-icon" />
+                      <PeopleIcon className="card-icon" />
                     </div>
                     <Typography variant="h6" className="card-title">
                       Platform Users
                     </Typography>
                     <Typography className="card-value">
-                      254 Total Users
+                      {dashboardData.totalUsers} Total Users
                     </Typography>
                     <Button 
                       variant="contained" 
                       className="card-action-btn"
                       color="primary"
+                      onClick={() => navigate('/admin/users')}
                     >
                       Manage Users
                     </Button>
@@ -247,20 +374,45 @@ const Home = () => {
                 <Card className="dashboard-card">
                   <CardContent>
                     <div className="card-icon-container courses">
-                      <AssignmentIcon className="card-icon" />
+                      <LocalLibraryIcon className="card-icon" />
                     </div>
                     <Typography variant="h6" className="card-title">
-                      Platform Courses
+                      Total Courses
                     </Typography>
                     <Typography className="card-value">
-                      18 Active Courses
+                      {dashboardData.totalCourses} Courses
                     </Typography>
                     <Button 
                       variant="contained" 
                       className="card-action-btn"
                       color="primary"
+                      onClick={() => navigate('/admin/courses')}
                     >
                       Manage Courses
+                    </Button>
+                  </CardContent>
+                </Card>
+              </Grid>
+              
+              <Grid item xs={12} sm={6} md={4}>
+                <Card className="dashboard-card">
+                  <CardContent>
+                    <div className="card-icon-container enrollments">
+                      <AssignmentIcon className="card-icon" />
+                    </div>
+                    <Typography variant="h6" className="card-title">
+                      Total Enrollments
+                    </Typography>
+                    <Typography className="card-value">
+                      {dashboardData.totalEnrollments} Enrollments
+                    </Typography>
+                    <Button 
+                      variant="contained" 
+                      className="card-action-btn"
+                      color="primary"
+                      onClick={() => navigate('/admin/enrollments')}
+                    >
+                      View Details
                     </Button>
                   </CardContent>
                 </Card>

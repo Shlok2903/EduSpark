@@ -49,24 +49,16 @@ const ManageCourses = () => {
         response = await courseService.getCoursesByTutor(userId);
       }
       
-      console.log('Course API response:', response);
-      
-      // Check if response has data and handle different response structures
       if (response.success && response.data) {
-        console.log('Setting courses from response.data:', response.data.length);
         setCourses(response.data);
       } else if (Array.isArray(response)) {
-        console.log('Setting courses from array response:', response.length);
         setCourses(response);
       } else if (response.data && Array.isArray(response.data)) {
-        console.log('Setting courses from response.data array:', response.data.length);
         setCourses(response.data);
       } else {
-        console.error('Unexpected response format:', response);
         setError('Failed to load courses - unexpected data format');
       }
     } catch (err) {
-      console.error('Error fetching courses:', err);
       setError('Failed to fetch courses: ' + (err.message || 'Unknown error'));
     } finally {
       setLoading(false);
@@ -81,19 +73,14 @@ const ManageCourses = () => {
     navigate(`/dashboard/courses/${courseId}`);
   };
 
-  const handleViewCourse = (courseId) => {
-    navigate(`/dashboard/courses/${courseId}`);
-  };
-
   const handleDeleteCourse = async (courseId) => {
     if (window.confirm('Are you sure you want to delete this course? This action cannot be undone and will remove all sections, modules, and student enrollment data.')) {
       try {
         setLoading(true);
         await courseService.deleteCourse(courseId);
         toast.success('Course deleted successfully');
-        fetchCourses(); // Refresh the list
+        fetchCourses();
       } catch (error) {
-        console.error('Error deleting course:', error);
         toast.error('Failed to delete course: ' + (error.response?.data?.message || error.message));
       } finally {
         setLoading(false);
@@ -102,8 +89,7 @@ const ManageCourses = () => {
   };
 
   const handleAssignCourse = (courseId) => {
-    // This would typically navigate to a page where you can assign courses to students
-    alert('Assign course functionality will be implemented soon!');
+    navigate(`/dashboard/courses/${courseId}/assign`);
   };
 
   if (loading) {
@@ -142,58 +128,46 @@ const ManageCourses = () => {
       <Box className="courses-grid-container">
         {courses.length > 0 ? (
           <Grid container spacing={3}>
-            {courses.map((course) => {
-              // Format course data for CourseCard
-              const formattedCourse = {
-                id: course._id,
-                title: course.title,
-                description: course.description,
-                imageUrl: course.imageUrl,
-                instructor: course.createdBy?.name || "Unknown Instructor",
-                isOptional: course.visibilityType === 'optional'
-              };
-              
-              return (
-                <Grid item xs={12} sm={6} md={4} key={course._id}>
-                  <Box className="course-card-wrapper">
-                    <CourseCard
-                      course={formattedCourse}
-                      userRole="teacher"
-                    />
-                    <Box className="course-actions">
-                      <ButtonGroup 
-                        variant="outlined" 
-                        fullWidth
-                        className="action-buttons"
+            {courses.map((course) => (
+              <Grid item xs={12} sm={6} md={4} key={course._id}>
+                <Box className="course-card-wrapper">
+                  <CourseCard
+                    course={{
+                      id: course._id,
+                      title: course.title,
+                      description: course.description,
+                      imageUrl: course.imageUrl,
+                      instructor: course.createdBy?.name || "Unknown Instructor",
+                      isOptional: course.visibilityType === 'optional'
+                    }}
+                    userRole="teacher"
+                  />
+                  <Box className="course-actions">
+                    <ButtonGroup 
+                      variant="outlined" 
+                      fullWidth
+                      className="action-buttons"
+                    >
+                      <Button 
+                        startIcon={<EditIcon />}
+                        onClick={() => handleEditCourse(course._id)}
+                        className="edit-button"
                       >
-                        <Button 
-                          startIcon={<EditIcon />}
-                          onClick={() => handleEditCourse(course._id)}
-                          className="edit-button"
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          startIcon={<AssignIcon />}
-                          onClick={() => handleAssignCourse(course._id)}
-                          className="assign-button"
-                        >
-                          Assign
-                        </Button>
-                        <Button
-                          startIcon={<DeleteIcon />}
-                          color="error"
-                          onClick={() => handleDeleteCourse(course._id)}
-                          className="delete-button"
-                        >
-                          Delete
-                        </Button>
-                      </ButtonGroup>
-                    </Box>
+                        Edit
+                      </Button>
+                    
+                      <Button
+                        startIcon={<DeleteIcon />}
+                        onClick={() => handleDeleteCourse(course._id)}
+                        className="delete-button"
+                      >
+                        Delete
+                      </Button>
+                    </ButtonGroup>
                   </Box>
-                </Grid>
-              );
-            })}
+                </Box>
+              </Grid>
+            ))}
           </Grid>
         ) : (
           <Box className="no-courses-message">

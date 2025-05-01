@@ -19,6 +19,7 @@ const studentRouter = require('./Routes/StudentRouter');
 const branchRouter = require('./Routes/BranchRouter');
 const semesterRouter = require('./Routes/SemesterRouter');
 const gradeRouter = require('./Routes/gradeRoutes');
+const dashboardRoutes = require('./Routes/dashboardRoutes');
 
 require('dotenv').config();
 
@@ -76,6 +77,7 @@ app.use('/students', studentRouter);
 app.use('/branches', branchRouter);
 app.use('/semesters', semesterRouter);
 app.use('/grades', gradeRouter);
+app.use('/api/dashboard', dashboardRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

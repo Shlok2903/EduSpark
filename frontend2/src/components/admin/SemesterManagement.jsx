@@ -33,6 +33,7 @@ import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
 import axios from 'axios';
 import { useLocation } from 'react-router-dom';
+import './AdminManagement.css';
 
 // Helper to get query parameters from URL
 function useQuery() {
@@ -318,32 +319,32 @@ const SemesterManagement = () => {
   };
 
   return (
-    <Container maxWidth="lg">
-      <Box py={3}>
-        <Paper elevation={0} sx={{ p: 2, mb: 3, backgroundColor: 'transparent' }}>
-          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-            <Typography variant="h4" component="h1">
-              Semester Management
-            </Typography>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleOpenAddDialog}
-            >
-              Add Semester
-            </Button>
-          </Box>
+    <Container maxWidth="lg" className="admin-management-container">
+      <Box className="page-header">
+        <Box>
+          <Typography variant="h4" component="h1" className="page-title">
+            Semester Management
+          </Typography>
           <Typography variant="body1" color="textSecondary">
             Create and manage semesters for student enrollment.
           </Typography>
-        </Paper>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={handleOpenAddDialog}
+        >
+          Add Semester
+        </Button>
+      </Box>
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
-          </Alert>
-        )}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
 
+      <Box className="content-container">
         {/* Branch Filter */}
         <Paper sx={{ p: 2, mb: 3 }}>
           <FormControl fullWidth>

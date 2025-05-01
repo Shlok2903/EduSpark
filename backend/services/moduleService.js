@@ -77,9 +77,14 @@ const createModule = async (courseId, sectionId, moduleData) => {
         break;
       
       case 'text':
+        console.log('Creating text module with content:', moduleData.textContent);
+        if (!moduleData.textContent || !moduleData.textContent.content) {
+          throw new Error('Text content is required for text type modules');
+        }
         moduleObj.textContent = {
-          content: sanitizeHtml(moduleData.textContent || '')
+          content: sanitizeHtml(moduleData.textContent.content)
         };
+        console.log('Created text content:', moduleObj.textContent);
         break;
       
       case 'quiz':
@@ -290,10 +295,12 @@ const updateModule = async (moduleId, moduleData) => {
       module.videoContent = {
         videoUrl: moduleData.videoContent.videoUrl
       };
-    } else if (module.contentType === 'text') {
+    } else if (module.contentType === 'text' && moduleData.textContent) {
+      console.log('Updating text content:', moduleData.textContent);
       module.textContent = {
-        content: sanitizeHtml(moduleData.textContent || '')
+        content: sanitizeHtml(moduleData.textContent.content || '')
       };
+      console.log('Updated module text content:', module.textContent);
     } else if (module.contentType === 'quizz' && moduleData.quizContent?.questions) {
       module.quizContent = {
         questions: moduleData.quizContent.questions.map(q => ({

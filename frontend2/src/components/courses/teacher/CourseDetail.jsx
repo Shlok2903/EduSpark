@@ -513,7 +513,7 @@ const CourseDetail = () => {
       // Create a clean module object for the API
       const moduleToSave = {
         title: moduleData.title,
-        description: moduleData.description,
+        description: moduleData.description || '',
         contentType: moduleData.contentType
       };
 
@@ -528,7 +528,21 @@ const CourseDetail = () => {
         return;
       }
 
-      if (moduleData.contentType === 'quiz') {
+      // Add the appropriate content field based on type
+      if (moduleData.contentType === 'text') {
+        // Make sure we're sending the text content in the correct format
+        console.log('Text content before save:', moduleData.content.text);
+        moduleToSave.textContent = {
+          content: moduleData.content.text || ''
+        };
+        console.log('Module to save:', moduleToSave);
+      } else if (moduleData.contentType === 'video') {
+        moduleToSave.videoContent = {
+          videoUrl: moduleData.content.videoUrl
+        };
+        // Also set the videoUrl at the root level for backward compatibility
+        moduleToSave.videoUrl = moduleData.content.videoUrl;
+      } else if (moduleData.contentType === 'quiz') {
         // Validate quiz questions
         const questions = moduleData.content.quiz.questions;
         if (!questions || questions.length === 0) {
@@ -569,21 +583,6 @@ const CourseDetail = () => {
           timer: 0,
           maxAttempts: 0
         };
-
-        console.log('Quiz content to save:', moduleToSave.quizContent);
-      }
-
-      // Add the appropriate content field based on type
-      if (moduleData.contentType === 'text') {
-        moduleToSave.textContent = {
-          content: moduleData.content.text
-        };
-      } else if (moduleData.contentType === 'video') {
-        moduleToSave.videoContent = {
-          videoUrl: moduleData.content.videoUrl
-        };
-        // Also set the videoUrl at the root level for backward compatibility
-        moduleToSave.videoUrl = moduleData.content.videoUrl;
       }
 
       console.log('Saving module with data:', moduleToSave);

@@ -12,7 +12,8 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  Container
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import NotificationsIcon from '@mui/icons-material/Notifications';
@@ -299,13 +300,13 @@ const StudentCourses = () => {
   }, []);
   
   return (
-    <div className="student-courses-page">
-      {/* Header section */}
-      <div className="header">
+    <Container maxWidth="xl" className="student-courses-page">
+      {/* Header section with search and notifications */}
+      <Box className="header">
         <Typography variant="h4" className="page-title">
           Courses
         </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
           <Box className="search-container">
             <TextField
               placeholder="Search courses..."
@@ -326,106 +327,102 @@ const StudentCourses = () => {
             <NotificationsIcon />
           </div>
         </Box>
-      </div>
+      </Box>
       
       <Box className="content-divider" />
       
       {/* Tabs for filtering courses */}
-      <Box sx={{ mb: 3 }}>
+      <Box className="course-tabs">
         <Tabs 
           value={filter} 
           onChange={handleTabChange}
-          className="course-tabs"
         >
           <Tab value="all" label="All Courses" />
           <Tab value="enrolled" label="My Enrolled Courses" />
         </Tabs>
       </Box>
       
-      {/* Error message - only show if not loading and has error */}
-      {!loading && error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
-      )}
-      
-      {/* Loading indicator */}
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-          <CircularProgress />
-        </Box>
-      ) : (
-        <>
-          {/* Courses grid */}
-          {filteredCourses.length === 0 ? (
-            <Box sx={{ textAlign: 'center', py: 6 }}>
-              <Typography variant="body1" sx={{ color: '#78909C' }}>
-                {filter === 'enrolled' 
-                  ? "You haven't enrolled in any courses yet." 
-                  : "No courses found. Try adjusting your search filters."}
-              </Typography>
-              {courses.length > 0 && (
-                <Typography variant="caption" sx={{ display: 'block', mt: 1, color: '#b0bec5' }}>
-                  There are {courses.length} courses available, but none match your current filters
+      {/* Scrollable content area */}
+      <Box className="courses-content">
+        {/* Error message */}
+        {!loading && error && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
+        
+        {/* Loading indicator */}
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <>
+            {/* Courses grid */}
+            {filteredCourses.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 6 }}>
+                <Typography variant="body1" sx={{ color: '#78909C' }}>
+                  {filter === 'enrolled' 
+                    ? "You haven't enrolled in any courses yet." 
+                    : "No courses found. Try adjusting your search filters."}
                 </Typography>
-              )}
-            </Box>
-          ) : (
-            <>
-              <Typography variant="body2" sx={{ mb: 2 }}>
-                Showing {filteredCourses.length} courses
-              </Typography>
-              <Grid 
-                container 
-                spacing={3} 
-                justifyContent="flex-start"
-                sx={{ px: 1 }}
-              >
-                {filteredCourses.map(course => {
-                  const courseId = course._id;
-                  return (
-                    <Grid 
-                      item 
-                      xs={12} 
-                      sm={6} 
-                      md={4} 
-                      lg={3} 
-                      key={courseId || `course-${filteredCourses.indexOf(course)}`} 
-                      sx={{ 
-                        display: 'flex', 
-                        justifyContent: 'center',
-                        mb: 3
-                      }}
-                    >
-                      <CourseCard
-                        course={{
-                          id: courseId,
-                          title: course.title || 'Untitled Course',
-                          instructor: course.createdBy?.name || 'Unknown Instructor',
-                          imageUrl: course.imageUrl,
-                          isOptional: course.visibilityType === 'optional',
-                          description: course.description || 'No description available'
-                        }}
-                        isEnrolled={isEnrolled(courseId)}
-                        progress={getProgress(courseId)}
-                        userRole="student"
-                        action={
-                          <EnrollmentButton
-                            courseId={courseId}
-                            isEnrolled={isEnrolled(courseId)}
-                            onEnrollmentChange={() => handleEnrollmentChange(courseId)}
-                          />
-                        }
-                      />
-                    </Grid>
-                  );
-                })}
-              </Grid>
-            </>
-          )}
-        </>
-      )}
-    </div>
+                {courses.length > 0 && (
+                  <Typography variant="caption" sx={{ display: 'block', mt: 1, color: '#b0bec5' }}>
+                    There are {courses.length} courses available, but none match your current filters
+                  </Typography>
+                )}
+              </Box>
+            ) : (
+              <>
+                <Typography variant="body2" sx={{ mb: 2 }}>
+                  Showing {filteredCourses.length} courses
+                </Typography>
+                <Grid 
+                  container 
+                  spacing={3} 
+                  justifyContent="flex-start"
+                >
+                  {filteredCourses.map(course => {
+                    const courseId = course._id;
+                    return (
+                      <Grid 
+                        item 
+                        xs={12} 
+                        sm={6} 
+                        md={4} 
+                        lg={3} 
+                        key={courseId || `course-${filteredCourses.indexOf(course)}`}
+                      >
+                        <CourseCard
+                          course={{
+                            id: courseId,
+                            title: course.title || 'Untitled Course',
+                            instructor: course.createdBy?.name || 'Unknown Instructor',
+                            imageUrl: course.imageUrl,
+                            isOptional: course.visibilityType === 'optional',
+                            description: course.description || 'No description available'
+                          }}
+                          isEnrolled={isEnrolled(courseId)}
+                          progress={getProgress(courseId)}
+                          userRole="student"
+                          action={
+                            <EnrollmentButton
+                              courseId={courseId}
+                              isEnrolled={isEnrolled(courseId)}
+                              onEnrollmentChange={() => handleEnrollmentChange(courseId)}
+                            />
+                          }
+                        />
+                      </Grid>
+                    );
+                  })}
+                </Grid>
+              </>
+            )}
+          </>
+        )}
+      </Box>
+    </Container>
   );
 };
 
