@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { handleUpload } = require('../Middlewares/uploadMiddleware');
 const { verifyToken } = require('../Middlewares/AuthMiddleware');
-const { isTeacherOrAdmin } = require('../Middlewares/RoleMiddleware');
+const { isTeacherOrAdmin } = require('../Middlewares/roleMiddleware');
 const { isCreatorOrAdmin, isEnrolledOrCreator } = require('../Middlewares/CourseAccessMiddleware');
 const {
   createCourse,
